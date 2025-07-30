@@ -25,7 +25,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '1', 
     name: 'Birria Queso Tacos', 
-    image: '/food-menu-images/birria-tacos.png', 
+    image: '/food-menu-images/queso-tacos.png', 
     type: 'food', 
     description: '3 queso birria tacos with queso oaxaca, onions, and cilantro. Served with consommé for dipping.',
     price: '$16.75',
