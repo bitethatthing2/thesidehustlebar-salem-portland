@@ -46,7 +46,7 @@ interface Comment {
   user_liked?: boolean;
 }
 
-interface VideoCommentsOptimizedProps {
+interface Videowolfpack_commentsOptimizedProps {
   postId: string;
   isOpen: boolean;
   onClose: () => void;
@@ -54,15 +54,15 @@ interface VideoCommentsOptimizedProps {
   onCommentCountChange: (count: number) => void;
 }
 
-export default function VideoCommentsOptimized({ 
+export default function Videowolfpack_commentsOptimized({ 
   postId, 
   isOpen, 
   onClose, 
   initialCommentCount, 
   onCommentCountChange 
-}: VideoCommentsOptimizedProps) {
+}: Videowolfpack_commentsOptimizedProps) {
   const { user } = useAuth();
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [wolfpack_comments, setwolfpack_comments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -76,14 +76,14 @@ export default function VideoCommentsOptimized({
   const channelRef = useRef<RealtimeChannel | null>(null);
   const mountedRef = useRef(true);
 
-  // Load comments with real-time subscription
+  // Load wolfpack_comments with real-time subscription
   useEffect(() => {
     if (!isOpen || !postId) return;
 
-    const loadComments = async () => {
+    const loadwolfpack_comments = async () => {
       setLoading(true);
       try {
-        const { data: commentsData, error } = await supabase
+        const { data: wolfpack_commentsData, error } = await supabase
           .from('wolfpack_comments')
           .select(`
             id,
@@ -110,11 +110,11 @@ export default function VideoCommentsOptimized({
         if (error) throw error;
 
         // Build threaded comment structure
-        const commentsMap = new Map<string, Comment>();
-        const rootComments: Comment[] = [];
+        const wolfpack_commentsMap = new Map<string, Comment>();
+        const rootwolfpack_comments: Comment[] = [];
 
-        // First pass: create all comments
-        commentsData?.forEach(comment => {
+        // First pass: create all wolfpack_comments
+        wolfpack_commentsData?.forEach(comment => {
           const processedComment: Comment = {
             id: comment.id,
             user_id: comment.user_id,
@@ -135,18 +135,18 @@ export default function VideoCommentsOptimized({
             replies: []
           };
 
-          commentsMap.set(comment.id, processedComment);
+          wolfpack_commentsMap.set(comment.id, processedComment);
 
           if (!comment.parent_id) {
-            rootComments.push(processedComment);
+            rootwolfpack_comments.push(processedComment);
           }
         });
 
         // Second pass: build reply structure
-        commentsData?.forEach(comment => {
+        wolfpack_commentsData?.forEach(comment => {
           if (comment.parent_id) {
-            const parent = commentsMap.get(comment.parent_id);
-            const child = commentsMap.get(comment.id);
+            const parent = wolfpack_commentsMap.get(comment.parent_id);
+            const child = wolfpack_commentsMap.get(comment.id);
             if (parent && child) {
               parent.replies = parent.replies || [];
               parent.replies.push(child);
@@ -154,29 +154,29 @@ export default function VideoCommentsOptimized({
           }
         });
 
-        // Sort root comments by created_at (newest first)
-        rootComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        // Sort root wolfpack_comments by created_at (newest first)
+        rootwolfpack_comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         
         // Sort replies within each comment (oldest first)
-        rootComments.forEach(comment => {
+        rootwolfpack_comments.forEach(comment => {
           if (comment.replies) {
             comment.replies.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
           }
         });
 
         if (mountedRef.current) {
-          setComments(rootComments);
-          const totalCount = commentsData?.length || 0;
+          setwolfpack_comments(rootwolfpack_comments);
+          const totalCount = wolfpack_commentsData?.length || 0;
           setCommentCount(totalCount);
           onCommentCountChange(totalCount);
         }
 
       } catch (error) {
-        console.error('Error loading comments:', error);
+        console.error('Error loading wolfpack_comments:', error);
         if (mountedRef.current) {
           toast({
             title: "Error",
-            description: "Failed to load comments",
+            description: "Failed to load wolfpack_comments",
             variant: "destructive"
           });
         }
@@ -187,9 +187,9 @@ export default function VideoCommentsOptimized({
       }
     };
 
-    // Set up real-time subscription for comments
+    // Set up real-time subscription for wolfpack_comments
     const channel = supabase
-      .channel(`comments_${postId}`)
+      .channel(`wolfpack_comments_${postId}`)
       .on(
         'postgres_changes',
         {
@@ -246,7 +246,7 @@ export default function VideoCommentsOptimized({
               replies: []
             };
 
-            setComments(prev => {
+            setwolfpack_comments(prev => {
               if (!newCommentData.parent_id) {
                 // Root comment - add to beginning
                 return [newComment, ...prev];
@@ -285,7 +285,7 @@ export default function VideoCommentsOptimized({
           console.log('Comment updated:', payload);
           
           if (mountedRef.current) {
-            setComments(prev => updateCommentInTree(prev, payload.new.id, payload.new));
+            setwolfpack_comments(prev => updateCommentInTree(prev, payload.new.id, payload.new));
           }
         }
       )
@@ -301,7 +301,7 @@ export default function VideoCommentsOptimized({
           console.log('Comment deleted:', payload);
           
           if (mountedRef.current) {
-            setComments(prev => removeCommentFromTree(prev, payload.old.id));
+            setwolfpack_comments(prev => removeCommentFromTree(prev, payload.old.id));
             setCommentCount(prev => {
               const newCount = Math.max(0, prev - 1);
               onCommentCountChange(newCount);
@@ -313,7 +313,7 @@ export default function VideoCommentsOptimized({
       .subscribe();
 
     channelRef.current = channel;
-    loadComments();
+    loadwolfpack_comments();
 
     return () => {
       if (channelRef.current) {
@@ -333,8 +333,8 @@ export default function VideoCommentsOptimized({
   }, []);
 
   // Helper function to update comment in nested structure
-  const updateCommentInTree = (comments: Comment[], commentId: string, updates: any): Comment[] => {
-    return comments.map(comment => {
+  const updateCommentInTree = (wolfpack_comments: Comment[], commentId: string, updates: any): Comment[] => {
+    return wolfpack_comments.map(comment => {
       if (comment.id === commentId) {
         return { ...comment, ...updates };
       }
@@ -349,8 +349,8 @@ export default function VideoCommentsOptimized({
   };
 
   // Helper function to remove comment from nested structure
-  const removeCommentFromTree = (comments: Comment[], commentId: string): Comment[] => {
-    return comments
+  const removeCommentFromTree = (wolfpack_comments: Comment[], commentId: string): Comment[] => {
+    return wolfpack_comments
       .filter(comment => comment.id !== commentId)
       .map(comment => ({
         ...comment,
@@ -518,7 +518,7 @@ export default function VideoCommentsOptimized({
     if (!user?.id) {
       toast({
         title: 'Authentication required',
-        description: 'Please sign in to like comments',
+        description: 'Please sign in to like wolfpack_comments',
         variant: 'destructive'
       });
       return;
@@ -554,7 +554,7 @@ export default function VideoCommentsOptimized({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
-            Comments ({commentCount})
+            wolfpack_comments ({commentCount})
           </h3>
           <button
             onClick={onClose}
@@ -564,20 +564,20 @@ export default function VideoCommentsOptimized({
           </button>
         </div>
 
-        {/* Comments List */}
+        {/* wolfpack_comments List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
-          ) : comments.length === 0 ? (
+          ) : wolfpack_comments.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-              <p>No comments yet</p>
+              <p>No wolfpack_comments yet</p>
               <p className="text-sm">Be the first to comment!</p>
             </div>
           ) : (
-            comments.map((comment) => (
+            wolfpack_comments.map((comment) => (
               <CommentItem
                 key={comment.id}
                 comment={comment}

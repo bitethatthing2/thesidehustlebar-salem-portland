@@ -14,7 +14,7 @@ DROP INDEX IF EXISTS idx_wolfpack_videos_created_at;
 DROP INDEX IF EXISTS idx_wolfpack_videos_active;
 
 -- ===================================================================
--- OPTIMIZED INDEXES FOR WOLFPACK_VIDEOS
+-- OPTIMIZED INDEXES FOR wolfpack_videos
 -- ===================================================================
 
 -- Composite index for the main feed query (is_active + created_at)
@@ -62,7 +62,7 @@ ON wolfpack_follows(follower_id, following_id);
 CREATE INDEX idx_wolfpack_follows_following_follower 
 ON wolfpack_follows(following_id, follower_id);
 
--- Optimize comments for count queries
+-- Optimize wolfpack_comments for count queries
 DROP INDEX IF EXISTS idx_wolfpack_comments_video_id;
 CREATE INDEX idx_wolfpack_comments_video_active 
 ON wolfpack_comments(video_id, is_deleted) 
@@ -88,7 +88,7 @@ SELECT
   v.duration,
   v.view_count,
   v.like_count,
-  v.comments_count,
+  v.wolfpack_comments_count,
   v.shares_count,
   v.music_name,
   v.hashtags,
@@ -105,7 +105,7 @@ SELECT
   u.wolf_emoji,
   -- Computed counts (for verification)
   (SELECT COUNT(*) FROM wolfpack_likes wl WHERE wl.video_id = v.id) as actual_like_count,
-  (SELECT COUNT(*) FROM wolfpack_comments wc WHERE wc.video_id = v.id AND NOT wc.is_deleted) as actual_comment_count
+  (SELECT COUNT(*) FROM wolfpack_commentswc WHERE wc.video_id = v.id AND NOT wc.is_deleted) as actual_comment_count
 FROM wolfpack_videos v
 LEFT JOIN users u ON v.user_id = u.id
 WHERE v.is_active = true
@@ -120,9 +120,9 @@ CREATE INDEX idx_feed_cache_user_id ON wolfpack_feed_cache(user_id);
 -- ===================================================================
 
 -- Drop existing problematic policies
-DROP POLICY IF EXISTS "Users can insert their own wolfpack videos" ON wolfpack_videos;
-DROP POLICY IF EXISTS "Users can update their own wolfpack videos" ON wolfpack_videos;
-DROP POLICY IF EXISTS "Users can delete their own wolfpack videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "Users can insert their own wolfpack wolfpack_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "Users can update their own wolfpack wolfpack_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "Users can delete their own wolfpack wolfpack_videos" ON wolfpack_videos;
 DROP POLICY IF EXISTS "wolfpack_videos_insert_policy" ON wolfpack_videos;
 DROP POLICY IF EXISTS "wolfpack_videos_update_policy" ON wolfpack_videos;
 DROP POLICY IF EXISTS "wolfpack_videos_select_policy" ON wolfpack_videos;
@@ -205,7 +205,7 @@ RETURNS TABLE (
   duration INT,
   view_count INT,
   like_count INT,
-  comments_count INT,
+  wolfpack_comments_count INT,
   shares_count INT,
   music_name TEXT,
   hashtags TEXT[],
@@ -239,7 +239,7 @@ BEGIN
     fc.duration,
     fc.view_count,
     fc.like_count,
-    fc.comments_count,
+    fc.wolfpack_comments_count,
     fc.shares_count,
     fc.music_name,
     fc.hashtags,
@@ -267,7 +267,7 @@ ANALYZE wolfpack_follows;
 ANALYZE users;
 
 -- ===================================================================
--- ADD COMMENTS FOR DOCUMENTATION
+-- ADD wolfpack_comments FOR DOCUMENTATION
 -- ===================================================================
 
 COMMENT ON INDEX idx_wolfpack_videos_feed_main IS 'Primary index for main feed queries filtering by is_active and ordering by created_at';

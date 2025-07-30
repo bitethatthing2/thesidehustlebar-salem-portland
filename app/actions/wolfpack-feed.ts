@@ -1,7 +1,7 @@
 "use server";
 
-import { createServerClient } from '@/lib/supabase/server';
-import { WolfpackService } from '@/lib/services/wolfpack';
+import { createServerClient } from "@/lib/supabase/server";
+import { WolfpackService } from "@/lib/services/wolfpack";
 
 export interface FeedItem {
   id: string;
@@ -12,7 +12,7 @@ export interface FeedItem {
   video_url: string | null;
   thumbnail_url?: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   music_name?: string;
   hashtags?: string[];
@@ -48,7 +48,7 @@ export async function fetchFeedItems(
       page,
       limit,
       userId,
-      currentUserId
+      currentUserId,
     });
   } catch (error) {
     console.error("Failed to fetch feed items:", error);
@@ -69,7 +69,7 @@ export async function fetchFollowingFeed(
     // Use the optimized WolfpackFeedService
     return await WolfpackService.feed.fetchFollowingFeed(currentUserId, {
       page,
-      limit
+      limit,
     });
   } catch (error) {
     console.error("Failed to fetch following feed:", error);

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Utensils, Wine, Star, DollarSign, Search, Play } from 'lucide-react';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
-import { getFreshImageUrl } from '@/lib/utils/image-cache';
+import { getSmartCacheBustedUrl } from '@/lib/utils/image-cache';
 import WatchItMadeModal from '@/components/menu/WatchItMadeModal';
 
 interface CarouselItem {
@@ -438,91 +438,11 @@ const carouselItems: CarouselItem[] = [
     features: ['Traditional', 'Perfect Side']
   },
 
-  // DRINKS - Margaritas
-  { 
-    id: '40', 
-    name: 'Hustle Margarita', 
-    image: '/drink-menu-images/margarita-boards.png', 
-    type: 'drink', 
-    description: 'Our signature margarita made with premium tequila, fresh lime juice, and agave nectar.',
-    price: '$15.00',
-    category: 'Margaritas',
-    features: ['Signature Drink', 'Premium Tequila']
-  },
-  { 
-    id: '41', 
-    name: 'Skinny Margarita', 
-    image: '/drink-menu-images/margarita-boards.png', 
-    type: 'drink', 
-    description: 'Low-calorie margarita with fresh lime juice and agave nectar.',
-    price: '$14.00',
-    category: 'Margaritas',
-    features: ['Low Calorie', 'Fresh Lime']
-  },
-  { 
-    id: '42', 
-    name: 'Spicy Margarita', 
-    image: '/drink-menu-images/margarita-boards.png', 
-    type: 'drink', 
-    description: 'Our signature margarita with jalapeño-infused tequila and a chili-salt rim for the perfect kick.',
-    price: '$14.00',
-    category: 'Margaritas',
-    features: ['Spicy Heat', 'Jalapeño Infused']
-  },
+  // DRINKS - Margaritas section removed (duplicates removed - see items 70-72)
 
-  // House Favorites
-  { 
-    id: '43', 
-    name: 'Paloma', 
-    image: '/drink-menu-images/margarita-boards.png', 
-    type: 'drink', 
-    description: 'Refreshing cocktail with tequila, fresh grapefruit juice, lime, and a splash of soda water.',
-    price: '$11.00',
-    category: 'House Favorites',
-    features: ['Refreshing', 'Citrus Forward']
-  },
-  { 
-    id: '44', 
-    name: 'Michelada', 
-    image: '/drink-menu-images/margarita-boards.png', 
-    type: 'drink', 
-    description: 'Mexican beer cocktail with lime juice, hot sauce, Worcestershire, and spices, served with a chili-lime rim.',
-    price: '$12.00',
-    category: 'House Favorites',
-    features: ['Authentic Mexican', 'Savory & Spicy']
-  },
-  { 
-    id: '45', 
-    name: 'Bloody Mary', 
-    image: '/drink-menu-images/margarita-boards.png', 
-    type: 'drink', 
-    description: 'Classic brunch cocktail with vodka, tomato juice, and a blend of spices.',
-    price: '$12.00',
-    category: 'House Favorites',
-    features: ['Brunch Classic', 'Savory']
-  },
+  // House Favorites section removed (duplicates removed - see items 54, 61, 62)
 
-  // Beer
-  { 
-    id: '46', 
-    name: 'Corona', 
-    image: '/drink-menu-images/boards.png', 
-    type: 'drink', 
-    description: 'Classic Mexican lager beer served ice cold.',
-    price: '$5.00',
-    category: 'Bottle Beer',
-    features: ['Mexican Lager', 'Ice Cold']
-  },
-  { 
-    id: '47', 
-    name: 'Modelo', 
-    image: '/drink-menu-images/boards.png', 
-    type: 'drink', 
-    description: 'Premium Mexican beer with a rich, full flavor.',
-    price: '$5.00',
-    category: 'Bottle Beer',
-    features: ['Premium Mexican', 'Full Flavor']
-  },
+  // Beer section removed (duplicates removed - see items 79-84)
 
   // Boards
   { 
@@ -538,7 +458,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '49', 
     name: 'Mimosa Board', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/mimosa-board.png', 
     type: 'drink', 
     description: 'Brut Champagne - CHOOSE TWO: Orange Juice, Cranberry Juice, Pineapple Juice',
     price: '$19.00',
@@ -550,7 +470,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '50', 
     name: 'Patron Flight', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/patron-flight.png', 
     type: 'drink', 
     description: 'Patron, Fresh lime juice, and Combier - CHOOSE FOUR: Strawberry, Watermelon, Mango, Peach, Passion Fruit, Raspberry, Prickly Pear, Pineapple, Guava, Kiwi, Blackberry, Coconut',
     price: '$35.00',
@@ -562,7 +482,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '51', 
     name: 'Beer Tower', 
-    image: '/food-menu-images/beer-tower.png', 
+    image: '/drink-menu-images/beer-tower.png', 
     type: 'drink', 
     description: 'CHOOSE BEER: COORS, MODELO, NEGRA MODELO, CORONA, PACIFICO, HEFE, and CIDERS',
     price: '$27.00',
@@ -572,7 +492,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '52', 
     name: 'Hustle Margarita Tower', 
-    image: '/food-menu-images/margarita.png', 
+    image: '/drink-menu-images/margarita-tower.png', 
     type: 'drink', 
     description: 'Tower serving of Hustle Margarita (serves 4-6)',
     price: '$50.00',
@@ -582,7 +502,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '53', 
     name: 'Texas Margarita Tower', 
-    image: '/food-menu-images/margarita.png', 
+    image: '/drink-menu-images/margarita-tower.png', 
     type: 'drink', 
     description: '88 OZ - Patron, Fresh Lime Juice, Orange Juice, Combier, and Salt',
     price: '$65.00',
@@ -594,7 +514,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '54', 
     name: 'Bloody Mary', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/bloody-mary.png', 
     type: 'drink', 
     description: 'Tito\'s, Bloody Mary Mix, Pickles, Banana Peppers, Olives, and Spices',
     price: '$12.00',
@@ -604,7 +524,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '55', 
     name: 'Cantarito', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/cantarito.png', 
     type: 'drink', 
     description: 'Herradura Blanco, Orange, Lime, and Salt',
     price: '$12.00',
@@ -614,7 +534,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '56', 
     name: 'Coconut Berry Dream', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/coconut-berry-dream.png', 
     type: 'drink', 
     description: 'Vanilla Vodka, Huckleberry, Coconut, and Pineapple',
     price: '$12.00',
@@ -624,7 +544,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '57', 
     name: 'Iced Doña 70', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/iced-dona.png', 
     type: 'drink', 
     description: 'Don 70, Strawberry Syrup, Peach Syrup, Lime Juice',
     price: '$22.00',
@@ -634,7 +554,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '58', 
     name: 'Iced Margatira', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/skinny-margarita.png', 
     type: 'drink', 
     description: 'Don Julio Blanco, Mango, Lime Juice, Chamoy, and Tajin',
     price: '$17.00',
@@ -644,7 +564,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '59', 
     name: 'Iced Pina Colada', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/iced-pina-colada.png', 
     type: 'drink', 
     description: 'Captain Morgan, Coconut Syrup, and Coconut Milk',
     price: '$15.00',
@@ -654,7 +574,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '60', 
     name: 'Mango Tamarindo', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/mango-tamarindo.png', 
     type: 'drink', 
     description: 'Spicy Tamarindo, Mango, and Pineapple',
     price: '$12.50',
@@ -664,7 +584,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '61', 
     name: 'Michelada', 
-    image: '/food-menu-images/michelada.png', 
+    image: '/drink-menu-images/michelada.png', 
     type: 'drink', 
     description: 'Beer, Michelada Mix, and Fresh Lime',
     price: '$12.00',
@@ -674,7 +594,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '62', 
     name: 'Paloma', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/paloma.png', 
     type: 'drink', 
     description: 'Cazadores, Orange, Grape Fruit Juice, Lime, and Salt',
     price: '$11.00',
@@ -684,7 +604,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '63', 
     name: 'Peachy Beachy', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/peachy-beachy.png', 
     type: 'drink', 
     description: 'Tito\'s, Champaign, and Peach syrup',
     price: '$12.00',
@@ -694,7 +614,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '64', 
     name: 'Pineapple Paradise', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/pineapple-paradise.png', 
     type: 'drink', 
     description: 'Grey Goose, Passion Fruit, and Pineapple',
     price: '$11.00',
@@ -706,7 +626,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '65', 
     name: 'Classic Martini', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/classic-martini.png', 
     type: 'drink', 
     description: 'Gin, Vermouth, and Olive',
     price: '$11.00',
@@ -716,7 +636,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '66', 
     name: 'Espresso Martini', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/espresso-martini.png', 
     type: 'drink', 
     description: 'Espresso Shot and Kahlua',
     price: '$11.00',
@@ -726,7 +646,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '67', 
     name: 'Fresh Lemon Drop', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/fresh-lemon-drop.png', 
     type: 'drink', 
     description: 'Fresh Lemon Juice, Syrup, and Grey Goose',
     price: '$11.00',
@@ -736,7 +656,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '68', 
     name: 'Lechera Espresso', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/lechera-espresso.png', 
     type: 'drink', 
     description: 'Kahlua, Bay Leaves, Condensed Milk, and Espresso Shot',
     price: '$12.00',
@@ -746,7 +666,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '69', 
     name: 'Passion Fruit Drop', 
-    image: '/drink-menu-images/margarita-boards.png', 
+    image: '/drink-menu-images/passion-fruit-drop.png', 
     type: 'drink', 
     description: 'Fresh Lemon Juice, Black Berry Syrup, and Grey Goose',
     price: '$12.00',
@@ -758,7 +678,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '70', 
     name: 'Hustle Margarita', 
-    image: '/food-menu-images/margarita.png', 
+    image: '/drink-menu-images/skinny-margarita.png', 
     type: 'drink', 
     description: 'Single serving Hustle Margarita',
     price: '$15.00',
@@ -770,7 +690,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '71', 
     name: 'Skinny Margarita', 
-    image: '/food-menu-images/margarita.png', 
+    image: '/drink-menu-images/skinny-margarita.png', 
     type: 'drink', 
     description: 'Luna Azul and Fresh Lime Juice',
     price: '$14.00',
@@ -780,7 +700,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '72', 
     name: 'Spicy Margarita', 
-    image: '/food-menu-images/margarita.png', 
+    image: '/drink-menu-images/skinny-margarita.png', 
     type: 'drink', 
     description: '818, Fresh Lime Juice, Blue Guava, and Infused Jalapenos',
     price: '$14.00',
@@ -792,7 +712,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '73', 
     name: 'Cinnamon Horchata', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/cinnamon-horchata.png', 
     type: 'drink', 
     description: 'Malibu, Horchata, Sprite, and Cinnamon',
     price: '$15.00',
@@ -802,7 +722,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '74', 
     name: 'Juicy Malibu', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/juicy-malibu.png', 
     type: 'drink', 
     description: 'Malibu, Watermelon Syrup, Pineapple Juice, and Watermelon Redbull',
     price: '$18.00',
@@ -812,7 +732,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '75', 
     name: 'Malibu Guava', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/malibu-guava.png', 
     type: 'drink', 
     description: 'Malibu, Guava Syrup, and Pineapple Juice',
     price: '$15.00',
@@ -822,7 +742,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '76', 
     name: 'Tropical Malibu', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/tropical-malibu.png', 
     type: 'drink', 
     description: 'Malibu, Passion Fruit Syrup, Orange Juice, and Pineapple Juice',
     price: '$15.00',
@@ -834,7 +754,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '77', 
     name: 'Mojito', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/mojito.png', 
     type: 'drink', 
     description: 'Bacardi or Hornitos - Lime, Mint, Syrup, and Soda Water',
     price: '$10.00',
@@ -844,7 +764,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '78', 
     name: 'Mosco Mulle', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/moscow-mule.png', 
     type: 'drink', 
     description: 'House Vodka, Ginger Bear, Mint, and Lime',
     price: '$11.00',
@@ -856,7 +776,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '79', 
     name: 'Corona', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/corona.png', 
     type: 'drink', 
     description: 'Classic Mexican lager beer served ice cold',
     price: '$5.00',
@@ -867,7 +787,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '80', 
     name: 'Modelo', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/modelo.png', 
     type: 'drink', 
     description: 'Premium Mexican beer with a rich, full flavor',
     price: '$5.00',
@@ -877,7 +797,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '81', 
     name: 'Negra Modelo', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/modelo.png', 
     type: 'drink', 
     description: 'Dark Mexican beer with rich malty flavor',
     price: '$5.50',
@@ -887,7 +807,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '82', 
     name: 'Pacifico', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/pacifico.png', 
     type: 'drink', 
     description: 'Light Mexican beer with crisp taste',
     price: '$5.25',
@@ -897,7 +817,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '83', 
     name: 'Dos Equis', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/dos-equis.png', 
     type: 'drink', 
     description: 'Mexican lager with balanced flavor',
     price: '$5.25',
@@ -907,7 +827,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '84', 
     name: 'White Claw', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/white-claw.png', 
     type: 'drink', 
     description: 'Hard seltzer with natural fruit flavors',
     price: '$5.00',
@@ -919,7 +839,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '85', 
     name: 'Domaine Saint Vincent', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/domaine-saint-vincent.png', 
     type: 'drink', 
     description: 'Sparkling Brut',
     price: '$8.00',
@@ -929,7 +849,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '86', 
     name: 'Lindeman Moscato', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/lindeman-moscato.png', 
     type: 'drink', 
     description: 'Sweet moscato wine',
     price: '$7.50',
@@ -939,7 +859,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '87', 
     name: 'SeaGlass Chardonnay', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/seaglass-chardonnay.png', 
     type: 'drink', 
     description: 'Chardonnay, Riesling',
     price: '$9.00',
@@ -951,7 +871,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '88', 
     name: 'Fountain Drinks', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/fountain-drinks.png', 
     type: 'drink', 
     description: 'Coke, Diet Coke, Sprite, Dr Pepper, Lemonade, Sweet Ice Tea',
     price: '$3.00',
@@ -961,7 +881,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '89', 
     name: 'Smoothies', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/smoothies.png', 
     type: 'drink', 
     description: 'Comes w/ Whip - Flavors: Strawberry, Watermelon, Mango, Peach, Passion Fruit, Raspberry, Prickly Pear, Pineapple, Guava, Kiwi, Black Berry, and Coconut',
     price: '$13.00',
@@ -971,7 +891,7 @@ const carouselItems: CarouselItem[] = [
   { 
     id: '90', 
     name: 'Coffee', 
-    image: '/drink-menu-images/boards.png', 
+    image: '/drink-menu-images/coffee.png', 
     type: 'drink', 
     description: 'Fresh brewed coffee',
     price: '$4.75',
@@ -982,7 +902,7 @@ const carouselItems: CarouselItem[] = [
 
 // Function to get watch-it-made video URL for specific items
 const getWatchItMadeVideo = (itemName: string, itemDescription: string): string | null => {
-  // Map specific items to their watch-it-made videos
+  // Map specific items to their watch-it-made wolfpack_videos
   const videoMap: { [key: string]: string } = {
     'loaded nachos': '/food-menu-images/watch-it-made.mp4',
     'loaded nacho': '/food-menu-images/watch-it-made.mp4',
@@ -995,7 +915,12 @@ const getWatchItMadeVideo = (itemName: string, itemDescription: string): string 
     'chorizo and potato breakfast burrito': '/food-menu-images/watch-it-made-breakfast-burrito.mp4',
     'asada & bacon': '/food-menu-images/watch-it-made-breakfast-burrito.mp4',
     'asada and bacon': '/food-menu-images/watch-it-made-breakfast-burrito.mp4',
-    'breakfast burrito': '/food-menu-images/watch-it-made-breakfast-burrito.mp4'
+    'breakfast burrito': '/food-menu-images/watch-it-made-breakfast-burrito.mp4',
+    'birria queso tacos': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
+    'queso birria tacos': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
+    'single queso taco': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
+    'queso tacos': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
+    'queso taco': '/food-menu-images/watch-it-being-made-queso-tacos.mp4'
   };
 
   const normalizedName = itemName.toLowerCase();
@@ -1272,10 +1197,10 @@ export function FoodDrinkCarousel() {
                 }`}
               >
                 {/* Professional Featured Image/Video */}
-                <div className="aspect-[4/3] relative bg-gradient-to-br from-gray-800 to-gray-900">
+                <div className="aspect-square relative bg-gradient-to-br from-gray-800 to-gray-900">
                   {item.image.endsWith('.mp4') || item.image.endsWith('.webm') ? (
                     <VideoPlayer
-                      src={getFreshImageUrl(item.image)}
+                      src={item.image}
                       className="w-full h-full object-cover"
                       showControls={false}
                       autoPlay
@@ -1284,10 +1209,10 @@ export function FoodDrinkCarousel() {
                     />
                   ) : (
                     <Image 
-                      src={getFreshImageUrl(item.image)}
+                      src={item.image}
                       alt={item.name}
                       fill
-                      className="object-cover object-center group-hover:scale-110 transition-transform duration-700"
+                      className="object-contain object-center group-hover:scale-110 transition-transform duration-700 p-2"
                       sizes="(max-width: 768px) 100vw, 50vw"
                     />
                   )}
@@ -1399,7 +1324,7 @@ export function FoodDrinkCarousel() {
             key={`modal-${item.id}`}
             isOpen={showWatchItMadeModal === item.id}
             onClose={() => setShowWatchItMadeModal('')}
-            videoSrc={watchItMadeVideoUrl}
+            wolfpack_videosrc={watchItMadeVideoUrl}
             itemName={item.name}
           />
         );

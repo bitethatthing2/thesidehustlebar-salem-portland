@@ -62,7 +62,7 @@ RETURNS TABLE (
     video_url TEXT,
     thumbnail_url TEXT,
     likes_count BIGINT,
-    comments_count BIGINT,
+    wolfpack_comments_count BIGINT,
     shares_count INT,
     created_at TIMESTAMP WITH TIME ZONE,
     music_name TEXT,
@@ -84,7 +84,7 @@ BEGIN
         wv.video_url,
         wv.thumbnail_url,
         COALESCE(COUNT(wpl.id), 0)::BIGINT as likes_count,
-        COALESCE(COUNT(wc.id), 0)::BIGINT as comments_count,
+        COALESCE(COUNT(wc.id), 0)::BIGINT as wolfpack_comments_count,
         0 as shares_count,
         wv.created_at,
         'Original Sound' as music_name,
@@ -93,7 +93,7 @@ BEGIN
     FROM wolfpack_videos wv
     LEFT JOIN users u ON wv.user_id = u.id
     LEFT JOIN wolfpack_post_likes wpl ON wv.id = wpl.video_id
-    LEFT JOIN wolfpack_comments wc ON wv.id = wc.video_id AND NOT wc.is_deleted
+    LEFT JOIN wolfpack_commentswc ON wv.id = wc.video_id AND NOT wc.is_deleted
     WHERE wv.is_active = true
     GROUP BY wv.id, wv.user_id, u.display_name, u.username, u.avatar_url, u.profile_image_url, 
              wv.description, wv.title, wv.video_url, wv.thumbnail_url, wv.created_at, wv.view_count
@@ -123,8 +123,8 @@ BEGIN
             'media_url', wv.video_url,
             'thumbnail_url', wv.thumbnail_url,
             'likes_count', COALESCE(wv.like_count, 0),
-            'comments_count', COALESCE(
-                (SELECT COUNT(*) FROM wolfpack_comments wc 
+            'wolfpack_comments_count', COALESCE(
+                (SELECT COUNT(*) FROM wolfpack_commentswc 
                  WHERE wc.video_id = wv.id AND NOT wc.is_deleted), 0
             ),
             'shares_count', 0,

@@ -78,7 +78,7 @@ DROP FUNCTION IF EXISTS public.get_video_stats(UUID);
 CREATE OR REPLACE FUNCTION public.get_video_stats(video_uuid UUID)
 RETURNS TABLE (
   likes_count INTEGER,
-  comments_count INTEGER,
+  wolfpack_comments_count INTEGER,
   shares_count INTEGER,
   views_count INTEGER,
   watch_time_seconds INTEGER
@@ -98,9 +98,9 @@ BEGIN
     
     COALESCE((
       SELECT COUNT(*)::INTEGER 
-      FROM wolfpack_comments 
+      FROM wolfpack_comments
       WHERE video_id = video_uuid AND is_deleted = false
-    ), 0) as comments_count,
+    ), 0) as wolfpack_comments_count,
     
     COALESCE((
       SELECT shares_count::INTEGER
@@ -160,10 +160,10 @@ GRANT EXECUTE ON FUNCTION public.get_video_stats(UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.user_liked_video(UUID, UUID) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.test_api_health() TO anon, authenticated;
 
--- Add table comments for PostgREST exposure
+-- Add table wolfpack_comments for PostgREST exposure
 COMMENT ON TABLE public.wolfpack_follows IS 'User following relationships for the wolfpack social network';
 COMMENT ON TABLE public.wolfpack_likes IS 'Video likes in the wolfpack social network';
-COMMENT ON TABLE public.wolfpack_comments IS 'Comments on wolfpack videos';
+COMMENT ON TABLE public.wolfpack_commentsIS 'wolfpack_comments on wolfpack wolfpack_videos';
 COMMENT ON TABLE public.wolfpack_videos IS 'Video wolfpack_posts in the wolfpack social network';
 
 -- Ensure wolfpack_follows table has proper structure
@@ -222,20 +222,20 @@ BEGIN
     CREATE POLICY "Users can view all likes" ON public.wolfpack_likes
       FOR SELECT USING (true);
       
-    CREATE POLICY "Users can like videos" ON public.wolfpack_likes
+    CREATE POLICY "Users can like wolfpack_videos" ON public.wolfpack_likes
       FOR INSERT WITH CHECK (auth.uid() = user_id);
       
-    CREATE POLICY "Users can unlike videos" ON public.wolfpack_likes
+    CREATE POLICY "Users can unlike wolfpack_videos" ON public.wolfpack_likes
       FOR DELETE USING (auth.uid() = user_id);
   END IF;
 END
 $$;
 
--- Ensure wolfpack_comments table has proper structure
+-- Ensure wolfpack_commentstable has proper structure
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'wolfpack_comments') THEN
-    CREATE TABLE public.wolfpack_comments (
+    CREATE TABLE public.wolfpack_comments(
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
       video_id UUID NOT NULL REFERENCES public.wolfpack_videos(id) ON DELETE CASCADE,
@@ -253,19 +253,19 @@ BEGIN
     CREATE INDEX idx_wolfpack_comments_created ON public.wolfpack_comments(created_at);
     
     -- Enable RLS
-    ALTER TABLE public.wolfpack_comments ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.wolfpack_commentsENABLE ROW LEVEL SECURITY;
     
     -- Add RLS policies
-    CREATE POLICY "Users can view all comments" ON public.wolfpack_comments
+    CREATE POLICY "Users can view all wolfpack_comments" ON public.wolfpack_comments
       FOR SELECT USING (NOT is_deleted);
       
-    CREATE POLICY "Users can create comments" ON public.wolfpack_comments
+    CREATE POLICY "Users can create wolfpack_comments" ON public.wolfpack_comments
       FOR INSERT WITH CHECK (auth.uid() = user_id);
       
-    CREATE POLICY "Users can update own comments" ON public.wolfpack_comments
+    CREATE POLICY "Users can update own wolfpack_comments" ON public.wolfpack_comments
       FOR UPDATE USING (auth.uid() = user_id);
       
-    CREATE POLICY "Users can delete own comments" ON public.wolfpack_comments
+    CREATE POLICY "Users can delete own wolfpack_comments" ON public.wolfpack_comments
       FOR DELETE USING (auth.uid() = user_id);
   END IF;
 END

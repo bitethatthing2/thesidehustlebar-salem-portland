@@ -3,9 +3,12 @@
  * Provides easy access to feature flags with loading states and error handling
  */
 
-import { useState, useEffect } from 'react';
-import { useUser } from './useUser';
-import { featureFlagsService, FeatureAccessResult } from '@/lib/services/feature-flags.service';
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  FeatureAccessResult,
+  featureFlagsService,
+} from "@/lib/services/feature-flags.service";
 
 interface UseFeatureFlagResult extends FeatureAccessResult {
   loading: boolean;
@@ -24,14 +27,14 @@ interface UseMultipleFeatureFlagsResult {
  * Hook to check a single feature flag
  */
 export function useFeatureFlag(flagName: string): UseFeatureFlagResult {
-  const { user } = useUser();
+  const { user } = useAuth();
   const [result, setResult] = useState<FeatureAccessResult>({ enabled: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const checkFeature = async () => {
     if (!user?.id) {
-      setResult({ enabled: false, reason: 'User not authenticated' });
+      setResult({ enabled: false, reason: "User not authenticated" });
       setLoading(false);
       return;
     }
@@ -39,13 +42,15 @@ export function useFeatureFlag(flagName: string): UseFeatureFlagResult {
     try {
       setLoading(true);
       setError(null);
-      
-      const featureResult = await featureFlagsService.checkFeatureAccess(flagName, user.id);
+
+      const featureResult = await featureFlagsService.checkFeatureAccess(
+        flagName,
+        user.id,
+      );
       setResult(featureResult);
-      
     } catch (err: any) {
-      setError(err.message || 'Failed to check feature flag');
-      setResult({ enabled: false, reason: 'Check failed' });
+      setError(err.message || "Failed to check feature flag");
+      setResult({ enabled: false, reason: "Check failed" });
     } finally {
       setLoading(false);
     }
@@ -59,16 +64,20 @@ export function useFeatureFlag(flagName: string): UseFeatureFlagResult {
     ...result,
     loading,
     error,
-    refresh: checkFeature
+    refresh: checkFeature,
   };
 }
 
 /**
  * Hook to check multiple feature flags at once
  */
-export function useMultipleFeatureFlags(flagNames: string[]): UseMultipleFeatureFlagsResult {
-  const { user } = useUser();
-  const [features, setFeatures] = useState<Record<string, FeatureAccessResult>>({});
+export function useMultipleFeatureFlags(
+  flagNames: string[],
+): UseMultipleFeatureFlagsResult {
+  const { user } = useAuth();
+  const [features, setFeatures] = useState<Record<string, FeatureAccessResult>>(
+    {},
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,16 +91,18 @@ export function useMultipleFeatureFlags(flagNames: string[]): UseMultipleFeature
     try {
       setLoading(true);
       setError(null);
-      
-      const results = await featureFlagsService.checkMultipleFeatures(flagNames, user.id);
+
+      const results = await featureFlagsService.checkMultipleFeatures(
+        flagNames,
+        user.id,
+      );
       setFeatures(results);
-      
     } catch (err: any) {
-      setError(err.message || 'Failed to check feature flags');
+      setError(err.message || "Failed to check feature flags");
       // Set all features to disabled on error
       const errorResults: Record<string, FeatureAccessResult> = {};
-      flagNames.forEach(flag => {
-        errorResults[flag] = { enabled: false, reason: 'Check failed' };
+      flagNames.forEach((flag) => {
+        errorResults[flag] = { enabled: false, reason: "Check failed" };
       });
       setFeatures(errorResults);
     } finally {
@@ -101,13 +112,13 @@ export function useMultipleFeatureFlags(flagNames: string[]): UseMultipleFeature
 
   useEffect(() => {
     checkFeatures();
-  }, [flagNames.join(','), user?.id]); // Use join to compare array contents
+  }, [flagNames.join(","), user?.id]); // Use join to compare array contents
 
   return {
     features,
     loading,
     error,
-    refresh: checkFeatures
+    refresh: checkFeatures,
   };
 }
 
@@ -123,12 +134,11 @@ export function useFeatureFlagAdmin() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const allFlags = await featureFlagsService.getAllFeatureFlags();
       setFlags(allFlags);
-      
     } catch (err: any) {
-      setError(err.message || 'Failed to load feature flags');
+      setError(err.message || "Failed to load feature flags");
     } finally {
       setLoading(false);
     }
@@ -137,20 +147,22 @@ export function useFeatureFlagAdmin() {
   const toggleFeature = async (flagName: string, enabled: boolean) => {
     try {
       setError(null);
-      
-      const result = await featureFlagsService.toggleFeatureForTesting(flagName, enabled);
-      
+
+      const result = await featureFlagsService.toggleFeatureForTesting(
+        flagName,
+        enabled,
+      );
+
       if (result.success) {
         // Refresh the flags list
         await loadAllFlags();
         return { success: true };
       } else {
-        setError(result.error || 'Failed to toggle feature');
+        setError(result.error || "Failed to toggle feature");
         return { success: false, error: result.error };
       }
-      
     } catch (err: any) {
-      const errorMessage = err.message || 'Failed to toggle feature';
+      const errorMessage = err.message || "Failed to toggle feature";
       setError(errorMessage);
       return { success: false, error: errorMessage };
     }
@@ -166,7 +178,7 @@ export function useFeatureFlagAdmin() {
     error,
     loadAllFlags,
     toggleFeature,
-    clearCache: () => featureFlagsService.clearAllCache()
+    clearCache: () => featureFlagsService.clearAllCache(),
   };
 }
 
@@ -184,14 +196,16 @@ export function useFeatureAccess(flagName: string): boolean {
  * Useful for components that need both
  */
 export function useAuthenticatedFeature(flagName: string) {
-  const { user, loading: userLoading } = useUser();
-  const { enabled, loading: flagLoading, error, refresh } = useFeatureFlag(flagName);
+  const { user, loading: userLoading } = useAuth();
+  const { enabled, loading: flagLoading, error, refresh } = useFeatureFlag(
+    flagName,
+  );
 
   return {
     user,
     hasAccess: !!user && enabled,
     loading: userLoading || flagLoading,
-    error: !user ? 'Authentication required' : error,
-    refresh
+    error: !user ? "Authentication required" : error,
+    refresh,
   };
 }

@@ -18,7 +18,7 @@ Your new feature flag system perfectly complements the new user fixes we just im
 
 ### 3. **Updated Components**
 - **PostCreator**: Now checks `wolfpack_video_upload` before allowing uploads
-- **VideoComments**: Checks `wolfpack_comments` and `wolfpack_likes` features
+- **Videowolfpack_comments**: Checks `wolfpack_comments` and `wolfpack_likes` features
 
 ## 🚀 How to Use Feature Flags in Your App
 
@@ -43,7 +43,7 @@ import { useMultipleFeatureFlags } from '@/hooks/useFeatureFlag';
 
 function SocialComponent() {
   const { features, loading } = useMultipleFeatureFlags([
-    FEATURE_FLAGS.WOLFPACK_COMMENTS,
+    FEATURE_FLAGS.wolfpack_comments,
     FEATURE_FLAGS.WOLFPACK_LIKES,
     FEATURE_FLAGS.WOLFPACK_FOLLOWING
   ]);
@@ -52,7 +52,7 @@ function SocialComponent() {
   
   return (
     <div>
-      {features[FEATURE_FLAGS.WOLFPACK_COMMENTS]?.enabled && <CommentsSection />}
+      {features[FEATURE_FLAGS.wolfpack_comments]?.enabled && <wolfpack_commentsSection />}
       {features[FEATURE_FLAGS.WOLFPACK_LIKES]?.enabled && <LikeButton />}
       {features[FEATURE_FLAGS.WOLFPACK_FOLLOWING]?.enabled && <FollowButton />}
     </div>
@@ -96,15 +96,15 @@ function MenuItem() {
 ## 🛠️ Available Feature Flags
 
 ### Video System
-- `WOLFPACK_VIDEO_UPLOAD` - Upload videos/photos
+- `WOLFPACK_VIDEO_UPLOAD` - Upload wolfpack_videos/photos
 - `WOLFPACK_FOR_YOU_ALGORITHM` - Personalized feed
 
 ### Social Features  
 - `WOLFPACK_FOLLOWING` - Follow/unfollow users
 - `WOLFPACK_DM_SYSTEM` - Direct messaging
 - `WOLFPACK_CHAT_ROOMS` - Chat rooms
-- `WOLFPACK_COMMENTS` - Comment on posts
-- `WOLFPACK_LIKES` - Like posts/comments
+- `wolfpack_comments` - Comment on posts
+- `WOLFPACK_LIKES` - Like posts/wolfpack_comments
 
 ### Role-Specific Features
 - `DJ_BROADCAST_SYSTEM` - DJ broadcasting tools
@@ -199,9 +199,9 @@ function PostCreator() {
 
 ### 3. **Comment System Flow**
 ```typescript
-function Comments() {
-  // Check if comments are enabled
-  const { enabled: commentsEnabled } = useFeatureFlag(FEATURE_FLAGS.WOLFPACK_COMMENTS);
+function wolfpack_comments() {
+  // Check if wolfpack_comments are enabled
+  const { enabled: wolfpack_commentsEnabled } = useFeatureFlag(FEATURE_FLAGS.wolfpack_comments);
   
   // Handle new user commenting (from our previous fix)
   const handleComment = async () => {
@@ -209,7 +209,7 @@ function Comments() {
     // ... rest of comment logic
   };
   
-  if (!commentsEnabled) return <div>Comments temporarily disabled</div>;
+  if (!wolfpack_commentsEnabled) return <div>wolfpack_comments temporarily disabled</div>;
   return <CommentInterface />;
 }
 ```

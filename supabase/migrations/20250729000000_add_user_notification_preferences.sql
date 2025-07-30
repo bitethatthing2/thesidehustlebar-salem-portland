@@ -5,10 +5,10 @@ CREATE TABLE IF NOT EXISTS user_notification_preferences (
   
   -- Wolfpack notification preferences
   likes BOOLEAN DEFAULT true,
-  comments BOOLEAN DEFAULT true,
+  wolfpack_comments BOOLEAN DEFAULT true,
   follows BOOLEAN DEFAULT true,
   mentions BOOLEAN DEFAULT true,
-  new_videos BOOLEAN DEFAULT true,
+  new_wolfpack_videos BOOLEAN DEFAULT true,
   
   -- General notification preferences
   push_notifications BOOLEAN DEFAULT true,
@@ -73,10 +73,10 @@ CREATE POLICY "Users can insert their own notification preferences"
 CREATE OR REPLACE FUNCTION get_user_notification_preferences(user_uuid UUID)
 RETURNS TABLE (
   likes BOOLEAN,
-  comments BOOLEAN,
+  wolfpack_comments BOOLEAN,
   follows BOOLEAN,
   mentions BOOLEAN,
-  new_videos BOOLEAN,
+  new_wolfpack_videos BOOLEAN,
   push_notifications BOOLEAN,
   email_notifications BOOLEAN,
   in_app_notifications BOOLEAN,
@@ -89,10 +89,10 @@ BEGIN
   RETURN QUERY
   SELECT 
     p.likes,
-    p.comments,
+    p.wolfpack_comments,
     p.follows,
     p.mentions,
-    p.new_videos,
+    p.new_wolfpack_videos,
     p.push_notifications,
     p.email_notifications,
     p.in_app_notifications,
@@ -108,10 +108,10 @@ BEGIN
     RETURN QUERY
     SELECT 
       true::BOOLEAN,  -- likes
-      true::BOOLEAN,  -- comments
+      true::BOOLEAN,  -- wolfpack_comments
       true::BOOLEAN,  -- follows
       true::BOOLEAN,  -- mentions
-      true::BOOLEAN,  -- new_videos
+      true::BOOLEAN,  -- new_wolfpack_videos
       true::BOOLEAN,  -- push_notifications
       false::BOOLEAN, -- email_notifications
       true::BOOLEAN,  -- in_app_notifications
@@ -128,10 +128,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 CREATE OR REPLACE FUNCTION update_user_notification_preferences(
   user_uuid UUID,
   new_likes BOOLEAN DEFAULT NULL,
-  new_comments BOOLEAN DEFAULT NULL,
+  new_wolfpack_comments BOOLEAN DEFAULT NULL,
   new_follows BOOLEAN DEFAULT NULL,
   new_mentions BOOLEAN DEFAULT NULL,
-  new_new_videos BOOLEAN DEFAULT NULL,
+  new_new_wolfpack_videos BOOLEAN DEFAULT NULL,
   new_push_notifications BOOLEAN DEFAULT NULL,
   new_email_notifications BOOLEAN DEFAULT NULL,
   new_in_app_notifications BOOLEAN DEFAULT NULL,
@@ -160,10 +160,10 @@ BEGIN
     INSERT INTO user_notification_preferences (
       user_id,
       likes,
-      comments,
+      wolfpack_comments,
       follows,
       mentions,
-      new_videos,
+      new_wolfpack_videos,
       push_notifications,
       email_notifications,
       in_app_notifications,
@@ -174,10 +174,10 @@ BEGIN
     ) VALUES (
       user_uuid,
       COALESCE(new_likes, true),
-      COALESCE(new_comments, true),
+      COALESCE(new_wolfpack_comments, true),
       COALESCE(new_follows, true),
       COALESCE(new_mentions, true),
-      COALESCE(new_new_videos, true),
+      COALESCE(new_new_wolfpack_videos, true),
       COALESCE(new_push_notifications, true),
       COALESCE(new_email_notifications, false),
       COALESCE(new_in_app_notifications, true),
@@ -190,10 +190,10 @@ BEGIN
     -- Update existing preferences (only update non-null values)
     UPDATE user_notification_preferences SET
       likes = COALESCE(new_likes, likes),
-      comments = COALESCE(new_comments, comments),
+      wolfpack_comments = COALESCE(new_wolfpack_comments, wolfpack_comments),
       follows = COALESCE(new_follows, follows),
       mentions = COALESCE(new_mentions, mentions),
-      new_videos = COALESCE(new_new_videos, new_videos),
+      new_wolfpack_videos = COALESCE(new_new_wolfpack_videos, new_wolfpack_videos),
       push_notifications = COALESCE(new_push_notifications, push_notifications),
       email_notifications = COALESCE(new_email_notifications, email_notifications),
       in_app_notifications = COALESCE(new_in_app_notifications, in_app_notifications),

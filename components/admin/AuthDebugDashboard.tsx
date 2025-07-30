@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Shield, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 
 interface AuthStatus {
   authenticated: boolean;

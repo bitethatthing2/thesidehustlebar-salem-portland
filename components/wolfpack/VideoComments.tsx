@@ -40,7 +40,7 @@ interface Comment {
   is_liked?: boolean;
 }
 
-interface VideoCommentsProps {
+interface Videowolfpack_commentsProps {
   postId: string;
   isOpen: boolean;
   onClose: () => void;
@@ -48,7 +48,7 @@ interface VideoCommentsProps {
   onCommentCountChange?: (count: number) => void;
 }
 
-// CommentItem component for rendering individual comments and their replies
+// CommentItem component for rendering individual wolfpack_comments and their replies
 interface CommentItemProps {
   comment: Comment;
   onLike: (commentId: string) => void;
@@ -199,16 +199,16 @@ function CommentItem({
   );
 }
 
-export default function VideoComments({ postId, isOpen, onClose, initialCommentCount, onCommentCountChange }: VideoCommentsProps) {
+export default function Videowolfpack_comments({ postId, isOpen, onClose, initialCommentCount, onCommentCountChange }: Videowolfpack_commentsProps) {
   const { user } = useAuth();
   
   // Feature flag integration
   const { features: socialFeatures, loading: featuresLoading } = useMultipleFeatureFlags([
-    FEATURE_FLAGS.WOLFPACK_COMMENTS,
+    FEATURE_FLAGS.wolfpack_comments,
     FEATURE_FLAGS.WOLFPACK_LIKES
   ]);
   
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [wolfpack_comments, setwolfpack_comments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -223,20 +223,20 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
 
   useEffect(() => {
     if (isOpen && postId) {
-      fetchComments();
+      fetchwolfpack_comments();
       // Focus input when opened
       setTimeout(() => inputRef.current?.focus(), 100);
       
       // Subscribe to real-time updates
-      unsubscribeRef.current = wolfpackSocialService.subscribeToComments(
+      unsubscribeRef.current = wolfpackSocialService.subscribeTowolfpack_comments(
         postId,
-        async (updatedComments) => {
-          console.log('Real-time subscription triggered. Raw comments:', updatedComments);
+        async (updatedwolfpack_comments) => {
+          console.log('Real-time subscription triggered. Raw wolfpack_comments:', updatedwolfpack_comments);
           
           try {
             // Convert to the component's comment format with reaction checking
-            const allFormattedComments = await Promise.all(
-              updatedComments.map(async (c) => {
+            const allFormattedwolfpack_comments = await Promise.all(
+              updatedwolfpack_comments.map(async (c) => {
                 let is_liked = false;
                 let likes_count = 0;
                 
@@ -271,14 +271,14 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
               })
             );
             
-            console.log('Formatted comments before hierarchy:', allFormattedComments);
+            console.log('Formatted wolfpack_comments before hierarchy:', allFormattedwolfpack_comments);
             
             // Organize into hierarchy
-            const formattedComments = organizeCommentsHierarchy(allFormattedComments);
+            const formattedwolfpack_comments = organizewolfpack_commentsHierarchy(allFormattedwolfpack_comments);
             
-            console.log('Final hierarchical comments:', formattedComments);
+            console.log('Final hierarchical wolfpack_comments:', formattedwolfpack_comments);
             
-            setComments(formattedComments);
+            setwolfpack_comments(formattedwolfpack_comments);
           } catch (error) {
             console.error('Error processing real-time comment updates:', error);
           }
@@ -298,23 +298,23 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
   // Notify parent when comment count changes
   useEffect(() => {
     if (onCommentCountChange) {
-      onCommentCountChange(comments.length);
+      onCommentCountChange(wolfpack_comments.length);
     }
-  }, [comments.length, onCommentCountChange]);
+  }, [wolfpack_comments.length, onCommentCountChange]);
 
-  const fetchComments = async () => {
+  const fetchwolfpack_comments = async () => {
     try {
       setLoading(true);
       
-      console.log('Fetching comments for post:', postId);
+      console.log('Fetching wolfpack_comments for post:', postId);
       
-      const fetchedComments = await wolfpackSocialService.getComments(postId, user?.id);
+      const fetchedwolfpack_comments = await wolfpackSocialService.getwolfpack_comments(postId, user?.id);
       
-      console.log('Raw fetched comments:', fetchedComments);
+      console.log('Raw fetched wolfpack_comments:', fetchedwolfpack_comments);
       
       // Convert to the component's comment format and get reaction status
-      const allFormattedComments = await Promise.all(
-        fetchedComments.map(async (c) => {
+      const allFormattedwolfpack_comments = await Promise.all(
+        fetchedwolfpack_comments.map(async (c) => {
           // Check if current user has liked this comment
           let is_liked = false;
           let likes_count = 0;
@@ -350,19 +350,19 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
         })
       );
       
-      console.log('Formatted comments before hierarchy:', allFormattedComments);
+      console.log('Formatted wolfpack_comments before hierarchy:', allFormattedwolfpack_comments);
       
-      // Organize comments into hierarchical structure
-      const formattedComments = organizeCommentsHierarchy(allFormattedComments);
+      // Organize wolfpack_comments into hierarchical structure
+      const formattedwolfpack_comments = organizewolfpack_commentsHierarchy(allFormattedwolfpack_comments);
       
-      console.log('Final hierarchical comments:', formattedComments);
+      console.log('Final hierarchical wolfpack_comments:', formattedwolfpack_comments);
       
-      setComments(formattedComments);
+      setwolfpack_comments(formattedwolfpack_comments);
     } catch (error) {
-      console.error('Error fetching comments:', error);
+      console.error('Error fetching wolfpack_comments:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load comments',
+        description: 'Failed to load wolfpack_comments',
         variant: 'destructive'
       });
     } finally {
@@ -430,7 +430,7 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
       
       if (result.success && result.comment) {
         setNewComment('');
-        // The real-time subscription will update the comments list
+        // The real-time subscription will update the wolfpack_comments list
         toast({
           title: 'Comment posted!',
           description: 'Your comment has been added'
@@ -454,18 +454,18 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
     if (!user) {
       toast({
         title: 'Authentication required',
-        description: 'Please log in to like comments',
+        description: 'Please log in to like wolfpack_comments',
         variant: 'destructive'
       });
       return;
     }
     
     // Get the current comment to check like status
-    const currentComment = comments.find(c => c.id === commentId);
+    const currentComment = wolfpack_comments.find(c => c.id === commentId);
     if (!currentComment) return;
     
     // Optimistic update
-    setComments(prev => 
+    setwolfpack_comments(prev => 
       prev.map(comment => 
         comment.id === commentId 
           ? { 
@@ -484,7 +484,7 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
       
     if (!result.success) {
       // Revert on error
-      setComments(prev => 
+      setwolfpack_comments(prev => 
         prev.map(c => 
           c.id === commentId 
             ? { 
@@ -504,18 +504,18 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
     }
   };
   
-  // Helper function to organize comments into hierarchical structure
-  const organizeCommentsHierarchy = (allComments: Comment[]): Comment[] => {
+  // Helper function to organize wolfpack_comments into hierarchical structure
+  const organizewolfpack_commentsHierarchy = (allwolfpack_comments: Comment[]): Comment[] => {
     const commentMap = new Map<string, Comment>();
-    const rootComments: Comment[] = [];
+    const rootwolfpack_comments: Comment[] = [];
     
-    // First pass: create a map of all comments
-    allComments.forEach(comment => {
+    // First pass: create a map of all wolfpack_comments
+    allwolfpack_comments.forEach(comment => {
       commentMap.set(comment.id, { ...comment, replies: [] });
     });
     
     // Second pass: organize into hierarchy
-    allComments.forEach(comment => {
+    allwolfpack_comments.forEach(comment => {
       const commentWithReplies = commentMap.get(comment.id)!;
       
       if (comment.parent_id) {
@@ -526,12 +526,12 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
         }
       } else {
         // This is a root comment
-        rootComments.push(commentWithReplies);
+        rootwolfpack_comments.push(commentWithReplies);
       }
     });
     
-    // Sort root comments by creation date (newest first)
-    rootComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    // Sort root wolfpack_comments by creation date (newest first)
+    rootwolfpack_comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     
     // Sort replies within each comment by creation date (oldest first)
     const sortReplies = (comment: Comment) => {
@@ -541,9 +541,9 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
       }
     };
     
-    rootComments.forEach(sortReplies);
+    rootwolfpack_comments.forEach(sortReplies);
     
-    return rootComments;
+    return rootwolfpack_comments;
   };
   
   const handleSubmitReply = async (e: React.FormEvent, parentCommentId: string) => {
@@ -643,9 +643,9 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
           };
           
           // Add reply to parent comment immediately
-          setComments(prevComments => {
-            const addReplyToComments = (comments: Comment[]): Comment[] => {
-              return comments.map(comment => {
+          setwolfpack_comments(prevwolfpack_comments => {
+            const addReplyTowolfpack_comments = (wolfpack_comments: Comment[]): Comment[] => {
+              return wolfpack_comments.map(comment => {
                 if (comment.id === parentCommentId) {
                   return {
                     ...comment,
@@ -656,14 +656,14 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
                 if (comment.replies && comment.replies.length > 0) {
                   return {
                     ...comment,
-                    replies: addReplyToComments(comment.replies)
+                    replies: addReplyTowolfpack_comments(comment.replies)
                   };
                 }
                 return comment;
               });
             };
             
-            return addReplyToComments(prevComments);
+            return addReplyTowolfpack_comments(prevwolfpack_comments);
           });
         }
         
@@ -713,12 +713,12 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
 
   if (!isOpen) return null;
 
-  console.log('VideoComments render:', { 
+  console.log('Videowolfpack_comments render:', { 
     isOpen, 
     postId, 
     user: !!user, 
     userId: user?.id,
-    commentsLength: comments.length,
+    wolfpack_commentsLength: wolfpack_comments.length,
     loading,
     newComment,
     userMetadata: user?.user_metadata
@@ -729,13 +729,13 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
       {/* Video background (blurred) */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
       
-      {/* Comments overlay - slides up from bottom */}
+      {/* wolfpack_comments overlay - slides up from bottom */}
       <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl flex flex-col max-h-[80vh] animate-slide-up">
         {/* TikTok-style Header */}
         <div className="flex items-center justify-center p-4 relative">
           <div className="w-12 h-1 bg-gray-400 rounded-full absolute top-2"></div>
           <h2 className="text-gray-900 text-lg font-semibold mt-2">
-            {comments.length} comments
+            {wolfpack_comments.length} wolfpack_comments
           </h2>
           <button
             onClick={onClose}
@@ -745,20 +745,20 @@ export default function VideoComments({ postId, isOpen, onClose, initialCommentC
           </button>
         </div>
 
-        {/* Comments List */}
+        {/* wolfpack_comments List */}
         <div className="flex-1 overflow-y-auto px-3 md:px-4 space-y-2 md:space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
             </div>
-          ) : comments.length === 0 ? (
+          ) : wolfpack_comments.length === 0 ? (
             <div className="text-center py-8">
               <MessageCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600 text-lg">No comments yet</p>
+              <p className="text-gray-600 text-lg">No wolfpack_comments yet</p>
               <p className="text-gray-500 text-sm">Be the first to comment!</p>
             </div>
           ) : (
-            comments.map((comment) => (
+            wolfpack_comments.map((comment) => (
               <CommentItem 
                 key={comment.id}
                 comment={comment}

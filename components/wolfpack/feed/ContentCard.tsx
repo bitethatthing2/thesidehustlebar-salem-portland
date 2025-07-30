@@ -19,7 +19,7 @@ interface ContentCardProps {
   is_live?: boolean;
   isActive: boolean;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   user_liked?: boolean;
   onLike: () => void;
@@ -61,7 +61,7 @@ export default function ContentCard({
   is_live = false,
   isActive,
   likes_count,
-  comments_count,
+  wolfpack_comments_count,
   shares_count,
   user_liked = false,
   onLike,
@@ -432,7 +432,7 @@ export default function ContentCard({
                 <MessageCircle className="w-7 h-7 text-white" />
               </div>
               <span className="text-white text-xs font-bold drop-shadow-lg">
-                {comments_count > 0 ? comments_count : ''}
+                {wolfpack_comments_count > 0 ? wolfpack_comments_count : ''}
               </span>
             </button>
 

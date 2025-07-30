@@ -7,7 +7,7 @@ import { Flame, Leaf, Star, Play } from 'lucide-react';
 import WatchItMadeModal from './WatchItMadeModal';
 import Image from 'next/image';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
-import { getFreshImageUrl } from '@/lib/utils/image-cache';
+// Removed getFreshImageUrl import to improve performance
 
 import type { MenuItemWithModifiers, CartOrderData } from '@/types/features/menu';
 
@@ -44,7 +44,7 @@ const getWatchItMadeVideo = (itemName: string, itemDescription: string, watchItM
   const searchText = (itemName + ' ' + itemDescription).toLowerCase().trim();
   const itemNameOnly = itemName.toLowerCase().trim();
   
-  // Fallback: Map specific items to their watch-it-made videos (for backward compatibility)
+  // Fallback: Map specific items to their watch-it-made wolfpack_videos (for backward compatibility)
   const videoMapping: { [key: string]: string } = {
     'loaded nachos': '/food-menu-images/watch-it-made.mp4',
     'loaded nacho': '/food-menu-images/watch-it-made.mp4',
@@ -60,7 +60,9 @@ const getWatchItMadeVideo = (itemName: string, itemDescription: string, watchItM
     'breakfast burrito': '/food-menu-images/watch-it-made-breakfast-burrito.mp4',
     'birria queso tacos': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
     'queso birria tacos': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
-    'queso tacos': '/food-menu-images/watch-it-being-made-queso-tacos.mp4'
+    'single queso taco': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
+    'queso tacos': '/food-menu-images/watch-it-being-made-queso-tacos.mp4',
+    'queso taco': '/food-menu-images/watch-it-being-made-queso-tacos.mp4'
   };
   
   // First pass: Look for EXACT matches with full search text
@@ -304,7 +306,7 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
           <div className="md:flex gap-4">
             {/* Image/Video with mobile-first sizing constraints */}
             {foodImageUrl && !imageError ? (
-              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-md overflow-hidden bg-gray-800 relative flex-shrink-0 border border-gray-600">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-md overflow-hidden bg-gray-800 relative flex-shrink-0 border border-gray-600 p-1">
                 {foodImageUrl.endsWith('.mp4') || foodImageUrl.endsWith('.webm') ? (
                   <VideoPlayer
                     src={foodImageUrl}
@@ -316,12 +318,12 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
                   />
                 ) : (
                   <Image
-                    src={getFreshImageUrl(foodImageUrl)}
+                    src={foodImageUrl}
                     alt={item.name}
                     fill
                     sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 112px"
-                    className="object-cover w-full h-full"
-                    style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                    className="object-contain w-full h-full"
+                    style={{ objectFit: 'contain', width: '100%', height: '100%' }}
                     loading="lazy"
                     placeholder="blur"
                     blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(64, 64))}`}
@@ -393,7 +395,7 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
         <WatchItMadeModal
           isOpen={showWatchItMadeModal}
           onClose={() => setShowWatchItMadeModal(false)}
-          videoSrc={watchItMadeVideoUrl}
+          wolfpack_videosrc={watchItMadeVideoUrl}
           itemName={item.name}
         />
       )}
@@ -443,7 +445,7 @@ export function CompactMenuItemCard({ item }: MenuItemCardProps) {
       <div className="menu-item-compact flex items-center gap-3 p-2 bg-zinc-800 rounded-lg border border-zinc-600 hover:border-zinc-500 transition-colors">
         {/* Small image/video/color indicator with mobile-first constraints */}
         {foodImageUrl && !imageError ? (
-          <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 border border-gray-600 relative">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 flex-shrink-0 rounded-lg overflow-hidden bg-gray-800 border border-gray-600 relative p-1">
             {foodImageUrl.endsWith('.mp4') || foodImageUrl.endsWith('.webm') ? (
               <VideoPlayer
                 src={foodImageUrl}
@@ -457,12 +459,12 @@ export function CompactMenuItemCard({ item }: MenuItemCardProps) {
               <>
                 {foodImageUrl && foodImageUrl.startsWith('/') ? (
                   <Image
-                    src={getFreshImageUrl(foodImageUrl)}
+                    src={foodImageUrl}
                     alt={item.name}
                     fill
                     sizes="(max-width: 640px) 48px, 64px"
-                    className="object-cover"
-                    style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                    className="object-contain"
+                    style={{ objectFit: 'contain', width: '100%', height: '100%' }}
                     loading="lazy"
                     onError={() => setImageError(true)}
                   />
@@ -507,7 +509,7 @@ export function CompactMenuItemCard({ item }: MenuItemCardProps) {
         <WatchItMadeModal
           isOpen={showWatchItMadeModal}
           onClose={() => setShowWatchItMadeModal(false)}
-          videoSrc={watchItMadeVideoUrl}
+          wolfpack_videosrc={watchItMadeVideoUrl}
           itemName={item.name}
         />
       )}

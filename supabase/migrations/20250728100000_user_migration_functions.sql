@@ -156,7 +156,7 @@ GRANT EXECUTE ON FUNCTION link_user_to_auth(UUID, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_user_profile_by_auth_id(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION check_auth_consistency() TO authenticated;
 
--- Comments for documentation
+-- wolfpack_comments for documentation
 COMMENT ON FUNCTION migrate_user_to_auth(TEXT) IS 'Checks if a user needs migration to the auth system';
 COMMENT ON FUNCTION link_user_to_auth(UUID, UUID) IS 'Links existing user profile to new auth account';
 COMMENT ON FUNCTION handle_new_user_signup() IS 'Creates user profile when new auth user signs up';

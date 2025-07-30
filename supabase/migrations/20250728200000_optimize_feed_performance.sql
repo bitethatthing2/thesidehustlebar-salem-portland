@@ -17,7 +17,7 @@ WHERE is_active = true;
 
 -- Video stats queries optimization
 CREATE INDEX IF NOT EXISTS idx_wolfpack_videos_stats 
-ON wolfpack_videos (id, like_count, comments_count, view_count);
+ON wolfpack_videos (id, like_count, wolfpack_comments_count, view_count);
 
 -- ===================================
 -- 2. User Profile Performance Indexes
@@ -50,14 +50,14 @@ ON wolfpack_post_likes (video_id, user_id);
 CREATE INDEX IF NOT EXISTS idx_wolfpack_post_likes_user_video 
 ON wolfpack_post_likes (user_id, video_id);
 
--- Video comments for feed display
+-- Video wolfpack_comments for feed display
 CREATE INDEX IF NOT EXISTS idx_wolfpack_comments_video_active 
-ON wolfpack_comments (video_id, is_deleted, created_at DESC) 
+ON wolfpack_comments(video_id, is_deleted, created_at DESC) 
 WHERE is_deleted = false;
 
--- User comments lookup
+-- User wolfpack_comments lookup
 CREATE INDEX IF NOT EXISTS idx_wolfpack_comments_user_active 
-ON wolfpack_comments (user_id, is_deleted, created_at DESC) 
+ON wolfpack_comments(user_id, is_deleted, created_at DESC) 
 WHERE is_deleted = false;
 
 -- ===================================
@@ -91,7 +91,7 @@ RETURNS TABLE(
   video_url TEXT,
   thumbnail_url TEXT,
   like_count INTEGER,
-  comments_count INTEGER,
+  wolfpack_comments_count INTEGER,
   view_count INTEGER,
   created_at TIMESTAMPTZ,
   duration INTEGER,
@@ -114,7 +114,7 @@ BEGIN
     v.video_url,
     v.thumbnail_url,
     v.like_count,
-    v.comments_count,
+    v.wolfpack_comments_count,
     v.view_count,
     v.created_at,
     v.duration,
@@ -160,8 +160,8 @@ BEGIN
       SELECT COUNT(*) FROM wolfpack_post_likes 
       WHERE video_id = p_video_id
     ),
-    comments_count = (
-      SELECT COUNT(*) FROM wolfpack_comments 
+    wolfpack_comments_count = (
+      SELECT COUNT(*) FROM wolfpack_comments
       WHERE video_id = p_video_id AND is_deleted = false
     ),
     updated_at = NOW()
@@ -184,7 +184,7 @@ SELECT
   u.display_name,
   COUNT(DISTINCT v.id) as video_count,
   COALESCE(SUM(v.like_count), 0) as total_likes,
-  COALESCE(SUM(v.comments_count), 0) as total_comments,
+  COALESCE(SUM(v.wolfpack_comments_count), 0) as total_wolfpack_comments,
   COALESCE(SUM(v.view_count), 0) as total_views,
   MAX(v.created_at) as last_video_at
 FROM users u
@@ -238,10 +238,10 @@ CREATE TRIGGER update_video_comment_stats
 -- Function to analyze feed query performance
 CREATE OR REPLACE FUNCTION analyze_feed_performance()
 RETURNS TABLE(
-  total_videos INTEGER,
-  active_videos INTEGER,
+  total_wolfpack_videos INTEGER,
+  active_wolfpack_videos INTEGER,
   avg_likes_per_video NUMERIC,
-  avg_comments_per_video NUMERIC,
+  avg_wolfpack_comments_per_video NUMERIC,
   most_recent_video TIMESTAMPTZ,
   index_usage TEXT
 ) 
@@ -251,10 +251,10 @@ AS $$
 BEGIN
   RETURN QUERY
   SELECT 
-    COUNT(*)::INTEGER as total_videos,
-    COUNT(*) FILTER (WHERE is_active = true)::INTEGER as active_videos,
+    COUNT(*)::INTEGER as total_wolfpack_videos,
+    COUNT(*) FILTER (WHERE is_active = true)::INTEGER as active_wolfpack_videos,
     AVG(like_count) as avg_likes_per_video,
-    AVG(comments_count) as avg_comments_per_video,
+    AVG(wolfpack_comments_count) as avg_wolfpack_comments_per_video,
     MAX(created_at) as most_recent_video,
     'Check pg_stat_user_indexes for detailed index usage' as index_usage
   FROM wolfpack_videos;
@@ -282,7 +282,7 @@ $$;
 -- Grant access to the function
 GRANT EXECUTE ON FUNCTION refresh_feed_materialized_views() TO authenticated;
 
--- Comments for documentation
+-- wolfpack_comments for documentation
 COMMENT ON FUNCTION get_optimized_feed(INTEGER, INTEGER, UUID) IS 'Optimized feed query function with user like status';
 COMMENT ON FUNCTION update_video_stats(UUID) IS 'Efficiently updates video like and comment counts';
 COMMENT ON FUNCTION analyze_feed_performance() IS 'Provides feed performance analytics';

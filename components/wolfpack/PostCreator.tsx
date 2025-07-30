@@ -17,7 +17,7 @@ export function PostCreator({ isOpen, onClose, onSuccess }: PostCreatorProps) {
   const { user } = useAuth();
   
   // Feature flag integration
-  const { hasAccess: canUploadVideos, loading: featureLoading, error: featureError } = 
+  const { hasAccess: canUploadwolfpack_videos, loading: featureLoading, error: featureError } = 
     useAuthenticatedFeature(FEATURE_FLAGS.WOLFPACK_VIDEO_UPLOAD);
   
   // Custom hooks
@@ -37,14 +37,14 @@ export function PostCreator({ isOpen, onClose, onSuccess }: PostCreatorProps) {
   useEffect(() => {
     if (featureError) {
       setErrorMessage(featureError);
-    } else if (!canUploadVideos && !featureLoading) {
+    } else if (!canUploadwolfpack_videos && !featureLoading) {
       setErrorMessage('Video uploads are currently disabled for your account');
     } else if (camera.errorMessage) {
       setErrorMessage(camera.errorMessage);
     } else {
       setErrorMessage('');
     }
-  }, [canUploadVideos, featureLoading, featureError, camera.errorMessage]);
+  }, [canUploadwolfpack_videos, featureLoading, featureError, camera.errorMessage]);
   
   const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
     videoRef.current = element;

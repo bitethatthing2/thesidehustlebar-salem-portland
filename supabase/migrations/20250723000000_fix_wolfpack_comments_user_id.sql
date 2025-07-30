@@ -1,7 +1,7 @@
--- Fix wolfpack_comments user_id handling with trigger
--- This migration adds a trigger to automatically convert auth user ID to public user ID for comments
+-- Fix wolfpack_commentsuser_id handling with trigger
+-- This migration adds a trigger to automatically convert auth user ID to public user ID for wolfpack_comments
 
--- Create a trigger function to automatically convert auth user ID to public user ID for comments
+-- Create a trigger function to automatically convert auth user ID to public user ID for wolfpack_comments
 CREATE OR REPLACE FUNCTION set_comment_user_id()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -58,36 +58,36 @@ CREATE TRIGGER set_comment_user_id_trigger
   EXECUTE FUNCTION set_comment_user_id();
 
 -- Update RLS policies for wolfpack_comments
-DROP POLICY IF EXISTS "Anyone can view comments" ON wolfpack_comments;
-DROP POLICY IF EXISTS "Users can create comments" ON wolfpack_comments;
-DROP POLICY IF EXISTS "Users can update own comments" ON wolfpack_comments;
-DROP POLICY IF EXISTS "Users can delete own comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Anyone can view wolfpack_comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can create wolfpack_comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can update own wolfpack_comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can delete own wolfpack_comments" ON wolfpack_comments;
 
 -- Create new policies
-CREATE POLICY "Anyone can view comments"
+CREATE POLICY "Anyone can view wolfpack_comments"
   ON wolfpack_comments
   FOR SELECT
   USING (true);
 
-CREATE POLICY "Authenticated users can create comments"
+CREATE POLICY "Authenticated users can create wolfpack_comments"
   ON wolfpack_comments
   FOR INSERT
   TO authenticated
   WITH CHECK (true);
 
-CREATE POLICY "Users can update own comments"
+CREATE POLICY "Users can update own wolfpack_comments"
   ON wolfpack_comments
   FOR UPDATE
   TO authenticated
   USING (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()))
   WITH CHECK (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()));
 
-CREATE POLICY "Users can delete own comments"
+CREATE POLICY "Users can delete own wolfpack_comments"
   ON wolfpack_comments
   FOR DELETE
   TO authenticated
   USING (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()));
 
 -- Grant necessary permissions
-GRANT SELECT, INSERT, UPDATE, DELETE ON wolfpack_comments TO authenticated;
-GRANT SELECT ON wolfpack_comments TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON wolfpack_commentsTO authenticated;
+GRANT SELECT ON wolfpack_commentsTO anon;

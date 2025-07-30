@@ -1,5 +1,5 @@
 -- Add watch_it_made_video column to menu_items table
--- This allows storing watch-it-made videos for menu items directly in the database
+-- This allows storing watch-it-made wolfpack_videos for menu items directly in the database
 -- rather than relying on hardcoded mappings in the frontend
 
 ALTER TABLE public.menu_items 

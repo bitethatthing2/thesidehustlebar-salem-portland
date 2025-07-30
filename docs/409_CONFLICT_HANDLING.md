@@ -7,7 +7,7 @@ When users try to like a post they've already liked, Supabase returns a **409 Co
 ### Schema Details
 ```sql
 -- Unique constraint that causes 409 errors
-CONSTRAINT wolfpack_video_likes_video_id_user_id_key 
+CONSTRAINT wolfpack_wolfpack_video_likes_video_id_user_id_key 
 UNIQUE (video_id, user_id)
 ```
 
@@ -24,7 +24,7 @@ if (insertError) {
     errorMessage.includes('409') ||                    // HTTP 409 Conflict  
     errorMessage.includes('duplicate') ||              // Duplicate key
     errorMessage.includes('unique') ||                 // Unique constraint
-    errorMessage.includes('wolfpack_video_likes_video_id_user_id_key') // Specific constraint
+    errorMessage.includes('wolfpack_wolfpack_video_likes_video_id_user_id_key') // Specific constraint
 
   if (isUniqueConstraintError) {
     console.log('User already liked this post (409 Conflict handled)')
@@ -155,7 +155,7 @@ function LikeButton({ postId }: { postId: string }) {
 | PostgreSQL Unique | `23505` | `duplicate key` | Treat as already liked |
 | HTTP Conflict | - | `409` | Treat as already liked |
 | Supabase Unique | - | `unique constraint` | Treat as already liked |
-| Constraint Name | - | `wolfpack_video_likes_video_id_user_id_key` | Treat as already liked |
+| Constraint Name | - | `wolfpack_wolfpack_video_likes_video_id_user_id_key` | Treat as already liked |
 
 ## 📊 **Monitoring & Debugging**
 

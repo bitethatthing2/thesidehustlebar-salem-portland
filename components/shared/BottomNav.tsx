@@ -11,7 +11,7 @@ import { useAdminAccess } from '@/lib/hooks/useAdminAccess';
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DynamicLogo } from './DynamicLogo';
-// import { useComments } from '@/lib/contexts/CommentsContext';
+// import { usewolfpack_comments } from '@/lib/contexts/wolfpack_commentsContext';
 
 export const BottomNav = () => {
   const pathname = usePathname();
@@ -21,8 +21,8 @@ export const BottomNav = () => {
   const { isAdmin } = useAdminAccess();
   const { user } = useAuth();
   const [isMounted, setIsMounted] = useState(false);
-  // const { isCommentsOpen } = useComments();
-  const isCommentsOpen = false; // Temporarily disabled until context is working
+  // const { iswolfpack_commentsOpen } = usewolfpack_comments();
+  const iswolfpack_commentsOpen = false; // Temporarily disabled until context is working
 
   // Set up mounted state
   useEffect(() => {
@@ -184,7 +184,7 @@ export const BottomNav = () => {
   const isChatPage = pathname.startsWith('/wolfpack/chat');
   const isWolfpackPage = pathname.startsWith('/wolfpack');
 
-  // Hide BottomNav on chat pages, feed page, main page, and when comments are open
+  // Hide BottomNav on chat pages, feed page, main page, and when wolfpack_comments are open
   const shouldHideBottomNav = pathname === '/' || 
                              pathname.startsWith('/wolfpack/chat') || 
                              pathname === '/wolfpack/feed' || 

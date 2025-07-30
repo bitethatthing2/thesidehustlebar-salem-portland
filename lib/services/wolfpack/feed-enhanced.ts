@@ -1,14 +1,16 @@
-import { supabase } from '@/lib/supabase';
-import type { Database } from '@/types/database.types';
+import { supabase } from "@/lib/supabase";
+import type { Database } from "@/types/database.types";
 
-type WolfpackPost = Database['public']['Tables']['wolfpack_videos']['Row'] & {
-  likes_count: number;
-  comments_count: number;
-  shares_count: number;
-  username: string;
-  avatar_url?: string;
-  is_liked?: boolean; // Only available for authenticated users
-};
+type WolfpackPost =
+  & Database["public"]["Tables"]["wolfpack_videos"]["Row"]
+  & {
+    likes_count: number;
+    wolfpack_comments_count: number;
+    shares_count: number;
+    username: string;
+    avatar_url?: string;
+    is_liked?: boolean; // Only available for authenticated users
+  };
 
 interface FeedOptions {
   limit?: number;
@@ -30,7 +32,7 @@ export class WolfpackFeedServiceEnhanced {
     try {
       // Fetch posts with public data only
       const { data: posts, error } = await supabase
-        .from('wolfpack_videos')
+        .from("wolfpack_videos")
         .select(`
           *,
           users!wolfpack_videos_user_id_fkey(
@@ -40,35 +42,39 @@ export class WolfpackFeedServiceEnhanced {
           wolfpack_likes(count),
           wolfpack_comments(count)
         `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) {
-        console.error('Error fetching public feed:', error);
+        console.error("Error fetching public feed:", error);
         throw error;
       }
 
       // Transform data for public consumption
-      const transformedPosts: WolfpackPost[] = (posts || []).map(post => ({
+      const transformedPosts: WolfpackPost[] = (posts || []).map((post) => ({
         ...post,
-        username: post.users?.display_name || 'Anonymous',
+        username: post.users?.display_name || "Anonymous",
         avatar_url: post.users?.avatar_url || undefined,
-        likes_count: Array.isArray(post.wolfpack_likes) ? post.wolfpack_likes.length : 0,
-        comments_count: Array.isArray(post.wolfpack_comments) ? post.wolfpack_comments.length : 0,
+        likes_count: Array.isArray(post.wolfpack_likes)
+          ? post.wolfpack_likes.length
+          : 0,
+        wolfpack_comments_count: Array.isArray(post.wolfpack_comments)
+          ? post.wolfpack_comments.length
+          : 0,
         shares_count: 0, // You can add shares tracking later
-        is_liked: undefined // Not available for anonymous users
+        is_liked: undefined, // Not available for anonymous users
       }));
 
       return {
         posts: transformedPosts,
-        hasMore: posts?.length === limit
+        hasMore: posts?.length === limit,
       };
     } catch (error) {
-      console.error('Failed to fetch public feed:', error);
+      console.error("Failed to fetch public feed:", error);
       return {
         posts: [],
-        hasMore: false
+        hasMore: false,
       };
     }
   }
@@ -77,7 +83,9 @@ export class WolfpackFeedServiceEnhanced {
    * Fetch authenticated feed - includes user-specific data
    * Returns posts with "is_liked" status and personalized content
    */
-  static async fetchAuthenticatedFeed(options: FeedOptions & { currentUserId: string }): Promise<{
+  static async fetchAuthenticatedFeed(
+    options: FeedOptions & { currentUserId: string },
+  ): Promise<{
     posts: WolfpackPost[];
     hasMore: boolean;
   }> {
@@ -86,7 +94,7 @@ export class WolfpackFeedServiceEnhanced {
     try {
       // Fetch posts with user-specific data
       const { data: posts, error } = await supabase
-        .from('wolfpack_videos')
+        .from("wolfpack_videos")
         .select(`
           *,
           users!wolfpack_videos_user_id_fkey(
@@ -97,33 +105,37 @@ export class WolfpackFeedServiceEnhanced {
           wolfpack_comments(count),
           user_likes:wolfpack_likes!inner(user_id)
         `)
-        .eq('is_active', true)
-        .eq('user_likes.user_id', currentUserId)
-        .order('created_at', { ascending: false })
+        .eq("is_active", true)
+        .eq("user_likes.user_id", currentUserId)
+        .order("created_at", { ascending: false })
         .range(offset, offset + limit - 1);
 
       if (error) {
-        console.error('Error fetching authenticated feed:', error);
+        console.error("Error fetching authenticated feed:", error);
         throw error;
       }
 
       // Transform data for authenticated users
-      const transformedPosts: WolfpackPost[] = (posts || []).map(post => ({
+      const transformedPosts: WolfpackPost[] = (posts || []).map((post) => ({
         ...post,
-        username: post.users?.display_name || 'Anonymous',
+        username: post.users?.display_name || "Anonymous",
         avatar_url: post.users?.avatar_url || undefined,
-        likes_count: Array.isArray(post.wolfpack_likes) ? post.wolfpack_likes.length : 0,
-        comments_count: Array.isArray(post.wolfpack_comments) ? post.wolfpack_comments.length : 0,
+        likes_count: Array.isArray(post.wolfpack_likes)
+          ? post.wolfpack_likes.length
+          : 0,
+        wolfpack_comments_count: Array.isArray(post.wolfpack_comments)
+          ? post.wolfpack_comments.length
+          : 0,
         shares_count: 0,
-        is_liked: Array.isArray(post.user_likes) && post.user_likes.length > 0
+        is_liked: Array.isArray(post.user_likes) && post.user_likes.length > 0,
       }));
 
       return {
         posts: transformedPosts,
-        hasMore: posts?.length === limit
+        hasMore: posts?.length === limit,
       };
     } catch (error) {
-      console.error('Failed to fetch authenticated feed:', error);
+      console.error("Failed to fetch authenticated feed:", error);
       // Fallback to public feed if authenticated feed fails
       return this.fetchPublicFeed({ limit, offset });
     }
@@ -148,44 +160,47 @@ export class WolfpackFeedServiceEnhanced {
   /**
    * Like a post - requires authentication
    */
-  static async likePost(postId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  static async likePost(
+    postId: string,
+    userId: string,
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       // Check if already liked
       const { data: existingLike } = await supabase
-        .from('wolfpack_likes')
-        .select('id')
-        .eq('video_id', postId)
-        .eq('user_id', userId)
+        .from("wolfpack_likes")
+        .select("id")
+        .eq("video_id", postId)
+        .eq("user_id", userId)
         .single();
 
       if (existingLike) {
         // Unlike
         const { error } = await supabase
-          .from('wolfpack_likes')
+          .from("wolfpack_likes")
           .delete()
-          .eq('video_id', postId)
-          .eq('user_id', userId);
+          .eq("video_id", postId)
+          .eq("user_id", userId);
 
         if (error) throw error;
         return { success: true };
       } else {
         // Like
         const { error } = await supabase
-          .from('wolfpack_likes')
+          .from("wolfpack_likes")
           .insert({
             video_id: postId,
             user_id: userId,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           });
 
         if (error) throw error;
         return { success: true };
       }
     } catch (error) {
-      console.error('Failed to like post:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Failed to like post' 
+      console.error("Failed to like post:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to like post",
       };
     }
   }
@@ -193,7 +208,10 @@ export class WolfpackFeedServiceEnhanced {
   /**
    * Share a post - can be done without authentication
    */
-  static async sharePost(postId: string, userId?: string): Promise<{ success: boolean; shareUrl: string }> {
+  static async sharePost(
+    postId: string,
+    userId?: string,
+  ): Promise<{ success: boolean; shareUrl: string }> {
     try {
       // Increment share count (you might want to add a shares table)
       // For now, just return the share URL
@@ -207,13 +225,13 @@ export class WolfpackFeedServiceEnhanced {
 
       return {
         success: true,
-        shareUrl
+        shareUrl,
       };
     } catch (error) {
-      console.error('Failed to share post:', error);
+      console.error("Failed to share post:", error);
       return {
         success: false,
-        shareUrl: ''
+        shareUrl: "",
       };
     }
   }
@@ -230,13 +248,13 @@ export class WolfpackFeedServiceEnhanced {
       // For now, return defaults
       return {
         showFollowingOnly: false,
-        contentFilters: []
+        contentFilters: [],
       };
     } catch (error) {
-      console.error('Failed to get user preferences:', error);
+      console.error("Failed to get user preferences:", error);
       return {
         showFollowingOnly: false,
-        contentFilters: []
+        contentFilters: [],
       };
     }
   }
@@ -244,49 +262,52 @@ export class WolfpackFeedServiceEnhanced {
   /**
    * Follow/unfollow a user - requires authentication
    */
-  static async toggleFollow(targetUserId: string, currentUserId: string): Promise<{ 
-    success: boolean; 
-    isFollowing: boolean; 
+  static async toggleFollow(
+    targetUserId: string,
+    currentUserId: string,
+  ): Promise<{
+    success: boolean;
+    isFollowing: boolean;
     error?: string;
   }> {
     try {
       // Check if already following
       const { data: existingFollow } = await supabase
-        .from('user_follows') // You might need to create this table
-        .select('id')
-        .eq('follower_id', currentUserId)
-        .eq('following_id', targetUserId)
+        .from("user_follows") // You might need to create this table
+        .select("id")
+        .eq("follower_id", currentUserId)
+        .eq("following_id", targetUserId)
         .single();
 
       if (existingFollow) {
         // Unfollow
         const { error } = await supabase
-          .from('user_follows')
+          .from("user_follows")
           .delete()
-          .eq('follower_id', currentUserId)
-          .eq('following_id', targetUserId);
+          .eq("follower_id", currentUserId)
+          .eq("following_id", targetUserId);
 
         if (error) throw error;
         return { success: true, isFollowing: false };
       } else {
         // Follow
         const { error } = await supabase
-          .from('user_follows')
+          .from("user_follows")
           .insert({
             follower_id: currentUserId,
             following_id: targetUserId,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
           });
 
         if (error) throw error;
         return { success: true, isFollowing: true };
       }
     } catch (error) {
-      console.error('Failed to toggle follow:', error);
-      return { 
-        success: false, 
+      console.error("Failed to toggle follow:", error);
+      return {
+        success: false,
         isFollowing: false,
-        error: error instanceof Error ? error.message : 'Failed to follow user' 
+        error: error instanceof Error ? error.message : "Failed to follow user",
       };
     }
   }

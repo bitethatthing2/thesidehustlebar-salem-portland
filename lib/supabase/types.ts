@@ -410,7 +410,7 @@ export type Database = {
           caption: string | null;
           song_id: string | null;
           is_private: boolean | null;
-          allow_comments: boolean | null;
+          allow_wolfpack_comments: boolean | null;
           allow_downloads: boolean | null;
           processed_at: string | null;
           processing_attempts: number | null;
@@ -460,7 +460,7 @@ export type Database = {
           caption?: string | null;
           song_id?: string | null;
           is_private?: boolean | null;
-          allow_comments?: boolean | null;
+          allow_wolfpack_comments?: boolean | null;
           allow_downloads?: boolean | null;
           processed_at?: string | null;
           processing_attempts?: number | null;
@@ -510,7 +510,7 @@ export type Database = {
           caption?: string | null;
           song_id?: string | null;
           is_private?: boolean | null;
-          allow_comments?: boolean | null;
+          allow_wolfpack_comments?: boolean | null;
           allow_downloads?: boolean | null;
           processed_at?: string | null;
           processing_attempts?: number | null;
@@ -1459,7 +1459,7 @@ export type BroadcastType = Enums<"broadcast_type">;
 export type DjEventType = Enums<"dj_event_type">;
 export type DjEventStatus = Enums<"dj_event_status">;
 export type FoodDrinkType = Enums<"food_drink_type">;
-export type VideoStatus = Enums<"video_status">;
+export type wolfpack_videostatus = Enums<"video_status">;
 export type VideoPrivacy = Enums<"video_privacy">;
 export type PostVisibility = Enums<"post_visibility">;
 export type PostType = Enums<"post_type">;
@@ -1514,7 +1514,7 @@ export interface WolfpackMemberFilter extends LocationFilter {
 
 export interface VideoFilter extends LocationFilter {
   userId?: string;
-  status?: VideoStatus;
+  status?: wolfpack_videostatus;
   privacy?: VideoPrivacy;
   featured?: boolean;
   category?: string;
@@ -1578,7 +1578,7 @@ export interface WolfpackMemberProfile extends User {
   followersCount?: number;
   followingCount?: number;
   postsCount?: number;
-  videosCount?: number;
+  wolfpack_videosCount?: number;
   isFollowing?: boolean;
   isFollower?: boolean;
 }

@@ -67,7 +67,7 @@ RETURNS TABLE (
   duration INTEGER,
   view_count INTEGER,
   like_count INTEGER,
-  comments_count INTEGER,
+  wolfpack_comments_count INTEGER,
   shares_count INTEGER,
   music_name TEXT,
   hashtags TEXT[],
@@ -110,7 +110,7 @@ BEGIN
       v.duration,
       v.view_count,
       v.like_count,
-      v.comments_count,
+      v.wolfpack_comments_count,
       v.shares_count,
       v.music_name,
       v.hashtags,
@@ -165,7 +165,7 @@ RETURNS TABLE (
   duration INTEGER,
   view_count INTEGER,
   like_count INTEGER,
-  comments_count INTEGER,
+  wolfpack_comments_count INTEGER,
   shares_count INTEGER,
   music_name TEXT,
   hashtags TEXT[],
@@ -210,7 +210,7 @@ BEGIN
       v.duration,
       v.view_count,
       v.like_count,
-      v.comments_count,
+      v.wolfpack_comments_count,
       v.shares_count,
       v.music_name,
       v.hashtags,
@@ -257,7 +257,7 @@ BEGIN
     pd.duration,
     pd.view_count,
     pd.like_count,
-    pd.comments_count,
+    pd.wolfpack_comments_count,
     pd.shares_count,
     pd.music_name,
     pd.hashtags,
@@ -287,7 +287,7 @@ END;
 $$ LANGUAGE plpgsql STABLE;
 
 -- 5. HELPER FUNCTIONS
-CREATE OR REPLACE FUNCTION get_user_video_likes(p_user_id UUID, p_video_ids UUID[])
+CREATE OR REPLACE FUNCTION get_user_wolfpack_video_likes(p_user_id UUID, p_video_ids UUID[])
 RETURNS UUID[] AS $$
 BEGIN
   RETURN ARRAY(

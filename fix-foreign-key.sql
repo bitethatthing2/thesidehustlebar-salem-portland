@@ -3,7 +3,7 @@
 
 -- First, drop the existing incorrect constraint
 ALTER TABLE wolfpack_post_likes 
-DROP CONSTRAINT wolfpack_video_likes_video_id_fkey;
+DROP CONSTRAINT wolfpack_wolfpack_video_likes_video_id_fkey;
 
 -- Add the correct constraint pointing to wolfpack_videos
 ALTER TABLE wolfpack_post_likes 

@@ -31,7 +31,7 @@ We have implemented 11 distinct content categories:
 - TikTok-style vertical video scrolling
 - Location-based content (Salem/Portland)
 - User profiles with verification badges
-- Comments system
+- wolfpack_comments system
 - Like/reaction system
 - Share functionality
 - Bookmark system
@@ -168,13 +168,13 @@ reactions (
 )
 ```
 
-### 7. Comments Table
+### 7. wolfpack_comments Table
 ```sql
-comments (
+wolfpack_comments (
   id: UUID PRIMARY KEY,
   video_id: UUID REFERENCES wolfpack_videos(id),
   user_id: UUID REFERENCES users(id),
-  parent_comment_id: UUID REFERENCES comments(id),
+  parent_comment_id: UUID REFERENCES wolfpack_comments(id),
   content: TEXT,
   reaction_count: INTEGER DEFAULT 0,
   created_at: TIMESTAMP,

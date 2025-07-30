@@ -8,14 +8,14 @@ import { cn } from '@/lib/utils';
 interface WatchItMadeModalProps {
   isOpen: boolean;
   onClose: () => void;
-  videoSrc: string;
+  wolfpack_videosrc: string;
   itemName: string;
 }
 
 export default function WatchItMadeModal({
   isOpen,
   onClose,
-  videoSrc,
+  wolfpack_videosrc,
   itemName
 }: WatchItMadeModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -70,7 +70,7 @@ export default function WatchItMadeModal({
     const handleError = () => {
       setIsLoading(false);
       setHasError(true);
-      console.error('Video failed to load:', videoSrc);
+      console.error('Video failed to load:', wolfpack_videosrc);
     };
     const handleLoadStart = () => {
       setIsLoading(true);
@@ -136,7 +136,7 @@ export default function WatchItMadeModal({
       setIsPlaying(false);
       setIsLoading(false);
     }
-  }, [isOpen, videoSrc]);
+  }, [isOpen, wolfpack_videosrc]);
 
   const togglePlayPause = () => {
     if (!videoRef.current) return;
@@ -226,7 +226,7 @@ export default function WatchItMadeModal({
             >
           <video
             ref={videoRef}
-            src={videoSrc}
+            src={wolfpack_videosrc}
             className="w-full h-full object-cover"
             muted={isMuted}
             playsInline

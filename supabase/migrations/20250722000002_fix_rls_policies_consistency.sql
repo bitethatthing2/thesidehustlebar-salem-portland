@@ -22,9 +22,9 @@ GRANT EXECUTE ON FUNCTION get_user_id_from_auth() TO authenticated;
 -- ===================================
 
 -- Drop inconsistent policies first
-DROP POLICY IF EXISTS "Users can insert their own videos" ON wolfpack_videos;
-DROP POLICY IF EXISTS "Users can update their own videos" ON wolfpack_videos;
-DROP POLICY IF EXISTS "Users can view all videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "Users can insert their own wolfpack_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "Users can update their own wolfpack_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "Users can view all wolfpack_videos" ON wolfpack_videos;
 
 -- Create consistent policies that work with database user IDs
 CREATE POLICY "wolfpack_videos_insert_policy" ON wolfpack_videos
@@ -38,18 +38,18 @@ WITH CHECK (user_id = get_user_id_from_auth());
 
 CREATE POLICY "wolfpack_videos_select_policy" ON wolfpack_videos
 FOR SELECT TO authenticated
-USING (true); -- Allow viewing all videos
+USING (true); -- Allow viewing all wolfpack_videos
 
 -- ===================================
--- Fix wolfpack_comments policies  
+-- Fix wolfpack_commentspolicies  
 -- ===================================
 
 -- Drop inconsistent policies
-DROP POLICY IF EXISTS "Users can create comments" ON wolfpack_comments;
-DROP POLICY IF EXISTS "Users can update their own comments" ON wolfpack_comments;
-DROP POLICY IF EXISTS "Users can soft delete their own comments" ON wolfpack_comments;
-DROP POLICY IF EXISTS "Users can update own comments" ON wolfpack_comments;
-DROP POLICY IF EXISTS "Users can delete own comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can create wolfpack_comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can update their own wolfpack_comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can soft delete their own wolfpack_comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can update own wolfpack_comments" ON wolfpack_comments;
+DROP POLICY IF EXISTS "Users can delete own wolfpack_comments" ON wolfpack_comments;
 
 -- Create consistent policies that work with database user IDs
 CREATE POLICY "wolfpack_comments_insert_policy" ON wolfpack_comments
@@ -66,7 +66,7 @@ FOR DELETE TO authenticated
 USING (user_id = get_user_id_from_auth());
 
 -- Keep the existing select policy (it's correct)
--- "Users can view all non-deleted comments" using (NOT is_deleted)
+-- "Users can view all non-deleted wolfpack_comments" using (NOT is_deleted)
 
 -- ===================================
 -- Fix wolfpack_likes policies
@@ -121,7 +121,7 @@ USING (user_id = get_user_id_from_auth());
 -- ===================================
 
 ALTER TABLE wolfpack_videos ENABLE ROW LEVEL SECURITY;
-ALTER TABLE wolfpack_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wolfpack_commentsENABLE ROW LEVEL SECURITY;
 ALTER TABLE wolfpack_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE wolfpack_follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE wolfpack_comment_reactions ENABLE ROW LEVEL SECURITY;

@@ -31,7 +31,7 @@ interface UserPost {
   video_url: string;
   thumbnail_url: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   created_at: string;
 }
 
@@ -87,7 +87,7 @@ export default function UserProfilePage() {
             video_url: post.video_url,
             thumbnail_url: post.thumbnail_url,
             likes_count: post.like_count || 0,
-            comments_count: 0, // Would need to count from comments table
+            wolfpack_comments_count: 0, // Would need to count from wolfpack_comments table
             created_at: post.created_at
           })));
         }
@@ -166,7 +166,7 @@ export default function UserProfilePage() {
         <div className="text-center">
           <h2 className="text-xl font-bold mb-4">{error || 'Profile not found'}</h2>
           <button 
-            onClick={() => router.back()}
+            onClick={() => router.push('/wolfpack/feed')}
             className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
           >
             Go Back
@@ -184,7 +184,7 @@ export default function UserProfilePage() {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
         <button 
-          onClick={() => router.back()}
+          onClick={() => router.push('/wolfpack/feed')}
           className="flex items-center gap-2 text-white hover:text-red-400"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -312,7 +312,7 @@ export default function UserProfilePage() {
                       </div>
                       <div className="flex items-center gap-1">
                         <MessageCircle className="w-4 h-4" />
-                        <span>{post.comments_count}</span>
+                        <span>{post.wolfpack_comments_count}</span>
                       </div>
                     </div>
                   </div>

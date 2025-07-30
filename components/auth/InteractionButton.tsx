@@ -26,13 +26,13 @@ export function InteractionButton({
   variant = 'default',
   size = 'default'
 }: InteractionButtonProps) {
-  const { user, loading } = useAuth();
+  const { isAuthenticated, loading, isReady } = useAuth();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleClick = async () => {
     if (disabled || isProcessing) return;
 
-    if (requiresAuth && !user) {
+    if (requiresAuth && !isAuthenticated) {
       // Store current path for redirect after login
       const currentPath = window.location.pathname + window.location.search;
       localStorage.setItem('redirectAfterLogin', currentPath);
@@ -56,7 +56,7 @@ export function InteractionButton({
     <Button
       onClick={handleClick}
       className={cn(className, isProcessing && "opacity-75")}
-      disabled={disabled || loading || isProcessing}
+      disabled={disabled || (!isReady && loading) || isProcessing}
       variant={variant}
       size={size}
     >

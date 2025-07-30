@@ -28,18 +28,18 @@ async function testFeedColumns() {
 
     // Test wolfpack_videos table columns
     console.log('\n\nTesting wolfpack_videos table columns:');
-    const { data: videos, error: videosError } = await supabase
+    const { data: wolfpack_videos, error: wolfpack_videosError } = await supabase
       .from('wolfpack_videos')
       .select('*')
       .limit(1);
 
-    if (videosError) {
-      console.error('Error:', videosError);
-    } else if (videos?.length > 0) {
+    if (wolfpack_videosError) {
+      console.error('Error:', wolfpack_videosError);
+    } else if (wolfpack_videos?.length > 0) {
       console.log('Columns in wolfpack_videos table:');
-      console.log(Object.keys(videos[0]));
+      console.log(Object.keys(wolfpack_videos[0]));
       console.log('\nFull first item:');
-      console.log(JSON.stringify(videos[0], null, 2));
+      console.log(JSON.stringify(wolfpack_videos[0], null, 2));
     }
 
   } catch (error) {

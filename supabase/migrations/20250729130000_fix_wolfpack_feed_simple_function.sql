@@ -15,7 +15,7 @@ RETURNS TABLE (
     created_at timestamptz,
     updated_at timestamptz,
     likes_count integer,
-    comments_count integer,
+    wolfpack_comments_count integer,
     shares_count integer,
     views_count integer,
     is_featured boolean,
@@ -54,7 +54,7 @@ BEGIN
         v.created_at,
         v.updated_at,
         v.likes_count,
-        v.comments_count,
+        v.wolfpack_comments_count,
         0 as shares_count, -- shares_count doesn't exist in wolfpack_videos
         v.views_count,
         v.is_featured,

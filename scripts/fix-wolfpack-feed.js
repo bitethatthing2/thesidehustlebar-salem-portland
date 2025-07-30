@@ -19,7 +19,7 @@ async function checkWolfpackTables() {
   console.log('🔍 Testing direct table access...');
   
   // Try direct access to wolfpack_videos
-  const { data: testVideos, error: testError } = await supabase
+  const { data: testwolfpack_videos, error: testError } = await supabase
     .from('wolfpack_videos')
     .select('id')
     .limit(1);
@@ -34,22 +34,22 @@ async function checkWolfpackTables() {
     }
   } else {
     console.log('✅ wolfpack_videos table is accessible');
-    console.log(`   Found ${testVideos?.length || 0} test records`);
+    console.log(`   Found ${testwolfpack_videos?.length || 0} test records`);
   }
 
   // Try to query wolfpack_videos
   console.log('\n🔍 Testing wolfpack_videos query...');
-  const { data: videos, error: videosError } = await supabase
+  const { data: wolfpack_videos, error: wolfpack_videosError } = await supabase
     .from('wolfpack_videos')
     .select('*')
     .limit(5);
 
-  if (videosError) {
-    console.error('❌ Error querying wolfpack_videos:', videosError.message);
-    console.log('   Code:', videosError.code);
-    console.log('   Details:', videosError.details);
+  if (wolfpack_videosError) {
+    console.error('❌ Error querying wolfpack_videos:', wolfpack_videosError.message);
+    console.log('   Code:', wolfpack_videosError.code);
+    console.log('   Details:', wolfpack_videosError.details);
   } else {
-    console.log(`✅ Successfully queried wolfpack_videos table. Found ${videos?.length || 0} videos.`);
+    console.log(`✅ Successfully queried wolfpack_videos table. Found ${wolfpack_videos?.length || 0} wolfpack_videos.`);
   }
 
   // Check RLS policies

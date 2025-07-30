@@ -1,91 +1,228 @@
-// lib/menu-data.ts
-import { createServerClient } from '@/lib/supabase/server';
-import type { Database } from './database.types';
+import { unstable_noStore as noStore } from 'next/cache';
+import { createClient } from '@supabase/supabase-js';
 
-type MenuCategory = Database['public']['Tables']['food_drink_categories']['Row'];
-type MenuItem = Database['public']['Tables']['food_drink_items']['Row'];
+// Type definitions for your data structures based on your actual database schema
+interface FoodDrinkCategory {
+  id: string;
+  name: string;
+  type: 'food' | 'drink';
+  description: string | null;
+  display_order: number | null;
+  is_active: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+  created_by: string | null;
+  icon: string | null;
+  color: string | null;
+}
+
+interface MenuItemModifier {
+  id: string;
+  name: string;
+  price: number;
+  is_required: boolean;
+  group_name: string;
+  [key: string]: unknown; // For any additional properties
+}
+
+interface MenuItemCategory {
+  id: string;
+  name: string;
+  type: 'food' | 'drink';
+  [key: string]: unknown; // For any additional properties from the jsonb field
+}
+
+interface MenuItemWithModifiers {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  is_available: boolean | null;
+  display_order: number | null;
+  category_id: string;
+  image_id: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  image_url: string | null;
+  category: MenuItemCategory | null;
+  modifiers: MenuItemModifier[] | null;
+}
+
+interface TransformedMenuItem {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  is_available: boolean;
+  display_order: number;
+  category_id: string;
+  category?: string;
+  image_url?: string;
+  modifiers: MenuItemModifier[];
+}
+
+interface DatabaseConnectionResult {
+  success: boolean;
+  error?: string;
+  data?: unknown;
+}
 
 /**
- * Fetches all menu categories from Supabase.
- * Gets categories from the 'food_drink_categories' table which contains both food and drink categories.
- * @returns {Promise<MenuCategory[]>} A promise that resolves to an array of categories.
+ * Creates a Supabase client with fallback for missing service role key
  */
-export async function getCategories(): Promise<MenuCategory[]> {
-  try {
-    const supabase = await createServerClient();
+function createPublicClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // Fetch all active categories from the food_drink_categories table
+  if (!supabaseUrl) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable');
+  }
+
+  if (!anonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable');
+  }
+
+  // Try service role key first (for bypassing RLS)
+  if (serviceRoleKey) {
+    console.log('✅ Using service role key for menu access');
+    return createClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+  }
+
+  // Fallback to anon key (requires proper RLS policies)
+  console.warn('⚠️ Service role key not found, using anon key for menu access');
+  console.warn('⚠️ Make sure RLS policies allow public read access to menu tables');
+  
+  return createClient(supabaseUrl, anonKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  });
+}
+
+/**
+ * Fetches all menu categories with error handling
+ */
+export async function getCategoriesPublic(): Promise<FoodDrinkCategory[]> {
+  noStore();
+
+  try {
+    const supabase = createPublicClient();
+
     const { data: categories, error } = await supabase
       .from('food_drink_categories')
       .select('*')
       .eq('is_active', true)
-      .order('type', { ascending: true }) // Group by type first (food, then drink)
-      .order('display_order', { ascending: true });
+      .order('type', { ascending: true })
+      .order('display_order', { ascending: true })
+      .returns<FoodDrinkCategory[]>();
      
     if (error) {
-      console.error('Error fetching categories:', error);
-      throw new Error(`Failed to fetch categories: ${JSON.stringify(error)}`);
+      console.error('❌ Error fetching categories:', error);
+      
+      // Provide more specific error messages
+      if (error.message.includes('Invalid API key')) {
+        throw new Error('Supabase API key is invalid. Check your environment variables.');
+      }
+      if (error.message.includes('permission') || error.message.includes('policy')) {
+        throw new Error('Permission denied. Check RLS policies for food_drink_categories table.');
+      }
+      
+      throw new Error(`Database error: ${error.message}`);
     }
      
     if (!categories || categories.length === 0) {
-      console.warn('No categories found');
+      console.warn('⚠️ No categories found in database');
       return [];
     }
 
+    console.log(`✅ Successfully loaded ${categories.length} categories`);
     return categories;
+    
   } catch (error) {
-    console.error('Unexpected error fetching categories:', error);
-    throw new Error(`Failed to fetch categories: ${error instanceof Error ? error.message : String(error)}`);
+    console.error('💥 Unexpected error fetching categories:', error);
+    
+    // Return empty array instead of throwing to prevent page crashes
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+    }
+    
+    // In development, you might want to throw the error
+    // In production, return empty array to gracefully handle failures
+    if (process.env.NODE_ENV === 'development') {
+      throw error;
+    }
+    
+    return [];
   }
 }
 
-// Define types for menu items with modifiers
-interface ModifierOption {
-  id: string;
-  name: string;
-  price_adjustment: number;
-  display_order: number;
-  is_default: boolean;
-}
-
-interface ModifierGroupWithOptions {
-  group_name: string;
-  modifier_type: string;
-  is_required: boolean;
-  min_selections: number;
-  max_selections: number;
-  modifiers: ModifierOption[];
-}
-
-interface MenuItemWithModifiers extends MenuItem {
-  modifier_groups: ModifierGroupWithOptions[];
-}
-
-// Type for the view response
-interface MenuItemWithWorkingModifiers extends MenuItem {
-  modifiers?: ModifierGroupWithOptions[];
+/**
+ * Helper function to get categories by type with improved error handling
+ */
+export async function getCategoriesByTypePublic(type: 'food' | 'drink'): Promise<FoodDrinkCategory[]> {
+  noStore();
+  
+  try {
+    const supabase = createPublicClient();
+    
+    const { data, error } = await supabase
+      .from('food_drink_categories')
+      .select('*')
+      .eq('type', type)
+      .eq('is_active', true)
+      .order('display_order', { ascending: true })
+      .returns<FoodDrinkCategory[]>();
+      
+    if (error) {
+      console.error(`❌ Error fetching ${type} categories:`, error);
+      
+      // Provide helpful error context
+      if (error.message.includes('Invalid API key')) {
+        console.error('🔑 API Key Issue: Check NEXT_PUBLIC_SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY');
+      }
+      if (error.message.includes('permission')) {
+        console.error('🔒 Permission Issue: Check RLS policies for food_drink_categories table');
+      }
+      
+      // Return empty array instead of throwing
+      return [];
+    }
+    
+    console.log(`✅ Successfully loaded ${data?.length || 0} ${type} categories`);
+    return data || [];
+    
+  } catch (error) {
+    console.error(`💥 Exception fetching ${type} categories:`, error);
+    return [];
+  }
 }
 
 /**
- * Fetches menu items for a specific category, including their modifier groups.
- * Uses the get_item_modifiers function to fetch modifiers efficiently.
- * @param {string} categoryId - The UUID of the category to fetch items for.
- * @returns {Promise<MenuItemWithModifiers[]>} A promise resolving to menu items with modifiers.
+ * Fetches menu items for a specific category with error handling
  */
-export async function getMenuItemsByCategory(categoryId: string): Promise<MenuItemWithModifiers[]> {
-  const supabase = await createServerClient();
+export async function getMenuItemsByCategoryPublic(categoryId: string): Promise<TransformedMenuItem[]> {
+  noStore();
    
   try {
-    // Fetch items with modifiers from the view
+    const supabase = createPublicClient();
+    
     const { data: items, error: itemsError } = await supabase
       .from('menu_items_with_working_modifiers')
       .select('*')
       .eq('category_id', categoryId)
       .eq('is_available', true)
-      .order('display_order', { ascending: true });
+      .order('display_order', { ascending: true })
+      .returns<MenuItemWithModifiers[]>();
      
     if (itemsError) {
-      console.error(`Error fetching menu items for category ${categoryId}:`, itemsError);
+      console.error(`❌ Error fetching menu items for category ${categoryId}:`, itemsError);
       return [];
     }
 
@@ -93,112 +230,62 @@ export async function getMenuItemsByCategory(categoryId: string): Promise<MenuIt
       return [];
     }
 
-    // Cast items to the expected type
-    const typedItems = items as unknown as MenuItemWithWorkingModifiers[];
+    // Transform the data with proper typing
+    const transformedItems: TransformedMenuItem[] = items.map((item) => {
+      // Handle the category field which might be a JSON object or string
+      const categoryName = typeof item.category === 'object' && item.category !== null 
+        ? (item.category as MenuItemCategory).name 
+        : undefined;
 
-    // The view returns data with modifiers already included
-    const itemsWithModifiers: MenuItemWithModifiers[] = typedItems.map(item => {
       return {
-        ...item,
-        modifier_groups: item.modifiers || []
+        id: item.id,
+        name: item.name,
+        description: item.description || undefined,
+        price: item.price,
+        is_available: item.is_available || false,
+        display_order: item.display_order || 0,
+        category_id: item.category_id,
+        category: categoryName,
+        image_url: item.image_url || undefined,
+        modifiers: item.modifiers || []
       };
     });
 
-    return itemsWithModifiers;
-  } catch (error) {
-    console.error(`Error fetching menu items for category ${categoryId}:`, error);
-    return [];
-  }
-}
-
-/**
- * Alternative: Fetch menu items with inline modifier data (if you prefer not to use RPC)
- * This approach uses joins but may be less efficient for complex modifier structures
- */
-export async function getMenuItemsByCategoryWithJoins(categoryId: string): Promise<MenuItemWithModifiers[]> {
-  const supabase = await createServerClient();
-   
-  try {
-    // Fetch items with modifiers from the view
-    const { data: items, error } = await supabase
-      .from('menu_items_with_working_modifiers')
-      .select('*')
-      .eq('category_id', categoryId)
-      .eq('is_available', true)
-      .order('display_order', { ascending: true });
-
-    if (error) {
-      console.error(`Error fetching menu items for category ${categoryId}:`, error);
-      return [];
-    }
-
-    // Cast items to the expected type
-    const typedItems = items as unknown as MenuItemWithWorkingModifiers[];
-
-    // The view returns data with modifiers already properly formatted
-    const transformedItems: MenuItemWithModifiers[] = (typedItems || []).map(item => {
-      return {
-        ...item,
-        modifier_groups: item.modifiers || []
-      };
-    });
-
+    console.log(`✅ Successfully loaded ${transformedItems.length} items for category ${categoryId}`);
     return transformedItems;
-  } catch (error) {
-    console.error(`Error fetching menu items for category ${categoryId}:`, error);
-    return [];
-  }
-}
-
-/**
- * Helper function to get categories by type
- */
-export async function getCategoriesByType(type: 'food' | 'drink'): Promise<MenuCategory[]> {
-  const supabase = await createServerClient();
-  
-  const { data, error } = await supabase
-    .from('food_drink_categories')
-    .select('*')
-    .eq('type', type)
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
     
-  if (error) {
-    console.error(`Error fetching ${type} categories:`, error);
+  } catch (error) {
+    console.error(`💥 Exception fetching menu items for category ${categoryId}:`, error);
     return [];
   }
-  
-  return data || [];
 }
 
 /**
- * Get a single menu item with all its modifiers
+ * Check if the database connection is working
  */
-export async function getMenuItemById(itemId: string): Promise<MenuItemWithModifiers | null> {
-  const supabase = await createServerClient();
-  
+export async function testMenuConnection(): Promise<DatabaseConnectionResult> {
   try {
-    // Fetch the item with modifiers from the view
-    const { data: item, error: itemError } = await supabase
-      .from('menu_items_with_working_modifiers')
-      .select('*')
-      .eq('id', itemId)
-      .single();
-      
-    if (itemError || !item) {
-      console.error('Error fetching item:', itemError);
-      return null;
+    const supabase = createPublicClient();
+    
+    // Simple connectivity test
+    const { data, error } = await supabase
+      .from('food_drink_categories')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.error('❌ Menu connection test failed:', error);
+      return { success: false, error: error.message };
     }
     
-    // Cast to the expected type
-    const typedItem = item as unknown as MenuItemWithWorkingModifiers;
+    console.log('✅ Menu connection test passed');
+    return { success: true, data };
     
-    return {
-      ...typedItem,
-      modifier_groups: typedItem.modifiers || []
-    };
   } catch (error) {
-    console.error(`Error fetching menu item ${itemId}:`, error);
-    return null;
+    console.error('💥 Menu connection test exception:', error);
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    };
   }
 }

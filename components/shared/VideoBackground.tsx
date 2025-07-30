@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react';
 import Script from 'next/script';
 
 interface VideoBackgroundProps {
-  videoSrc?: string;
+  wolfpack_videosrc?: string;
   instagramReelUrl?: string;
   posterSrc?: string;
   className?: string;
@@ -13,7 +13,7 @@ interface VideoBackgroundProps {
 }
 
 export const VideoBackground: React.FC<VideoBackgroundProps> = ({
-  videoSrc,
+  wolfpack_videosrc,
   instagramReelUrl,
   posterSrc,
   className = '',
@@ -24,12 +24,12 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (videoSrc && videoRef.current) {
+    if (wolfpack_videosrc && videoRef.current) {
       videoRef.current.play().catch((error) => {
         console.log('Video autoplay failed:', error);
       });
     }
-  }, [videoSrc]);
+  }, [wolfpack_videosrc]);
 
   useEffect(() => {
     if (instagramReelUrl && containerRef.current && window.instgrm) {
@@ -85,7 +85,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover"
-        src={videoSrc}
+        src={wolfpack_videosrc}
         poster={posterSrc}
         muted
         loop

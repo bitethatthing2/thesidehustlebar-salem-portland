@@ -18,7 +18,7 @@ interface FeedPost {
   video_url?: string;
   image_url?: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   created_at: string;
   is_liked?: boolean; // Only available for authenticated users
@@ -81,10 +81,10 @@ export default function AnonymousFriendlyFeed({
   const handleComment = async (postId: string) => {
     await executeAction(
       async () => {
-        // Navigate to comments or open comment modal
-        console.log('Opening comments for post:', postId);
+        // Navigate to wolfpack_comments or open comment modal
+        console.log('Opening wolfpack_comments for post:', postId);
         toast({
-          title: "Comments",
+          title: "wolfpack_comments",
           description: "Comment feature would open here.",
         });
       },
@@ -263,7 +263,7 @@ export default function AnonymousFriendlyFeed({
                 >
                   <MessageCircle className="w-5 h-5 text-zinc-400 group-hover:text-blue-500 transition-colors" />
                   <span className="text-sm text-zinc-400">
-                    {post.comments_count > 0 ? post.comments_count.toLocaleString() : ''}
+                    {post.wolfpack_comments_count > 0 ? post.wolfpack_comments_count.toLocaleString() : ''}
                   </span>
                 </InteractionButton>
               </div>

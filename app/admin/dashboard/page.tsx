@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
@@ -21,7 +21,7 @@ import BroadcastCleanupManager from '@/components/admin/BroadcastArchiveManager'
 export default function AdminDashboard() {
   const router = useRouter();
   const { toast } = useToast();
-  const [isSigningOut, setIsSigningOut] = React.useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
     try {

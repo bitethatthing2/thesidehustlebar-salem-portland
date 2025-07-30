@@ -14,14 +14,32 @@ import { Loader2, Shield, Sparkles, MapPin } from 'lucide-react';
 export default function OptimizedWolfpackFeedPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading: authLoading } = useAuth();
+  const { currentUser, user: authUser, isAuthenticated, loading: authLoading } = useAuth();
   const { toggleLike, loading: likingVideo } = useLikeVideo();
   
+  // Debug user info
+  useEffect(() => {
+    console.log('🔍 FEED DEBUG - User Info:', {
+      currentUser: currentUser ? {
+        id: currentUser.id,
+        email: currentUser.email,
+        displayName: currentUser.displayName,
+        username: currentUser.username
+      } : null,
+      authUser: authUser ? {
+        id: authUser.id,
+        email: authUser.email
+      } : null,
+      isAuthenticated,
+      authLoading
+    });
+  }, [currentUser, authUser, isAuthenticated, authLoading]);
+  
   // State management
-  const [videos, setVideos] = useState([]);
+  const [wolfpack_videos, setwolfpack_videos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userLikes, setUserLikes] = useState(new Set());
+  const [error, setError] = useState<string | null>(null);
+  const [userLikes, setUserLikes] = useState(new Set<string>());
   const [appUserId, setAppUserId] = useState<string | null>(null);
 
   // Create sample data to ensure the feed works
@@ -33,10 +51,10 @@ export default function OptimizedWolfpackFeedPage() {
         username: 'WolfPack Member',
         avatar_url: 'https://via.placeholder.com/50',
         caption: 'Welcome to the Wolf Pack! This is a sample video.',
-        video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        video_url: 'https://commondatastorage.googleapis.com/gtv-wolfpack_videos-bucket/sample/BigBuckBunny.mp4',
         thumbnail_url: 'https://via.placeholder.com/300x400',
         likes_count: 42,
-        comments_count: 5,
+        wolfpack_comments_count: 5,
         shares_count: 2,
         created_at: new Date().toISOString(),
         music_name: 'Original Sound',
@@ -49,10 +67,10 @@ export default function OptimizedWolfpackFeedPage() {
         username: 'Pack Leader',
         avatar_url: 'https://via.placeholder.com/50',
         caption: 'Another sample video for testing the feed!',
-        video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+        video_url: 'https://commondatastorage.googleapis.com/gtv-wolfpack_videos-bucket/sample/ElephantsDream.mp4',
         thumbnail_url: 'https://via.placeholder.com/300x400',
         likes_count: 73,
-        comments_count: 12,
+        wolfpack_comments_count: 12,
         shares_count: 8,
         created_at: new Date(Date.now() - 3600000).toISOString(),
         music_name: 'Original Sound',
@@ -65,7 +83,7 @@ export default function OptimizedWolfpackFeedPage() {
   // Load feed data with multiple fallback strategies
   const loadFeed = useCallback(async () => {
     try {
-      console.log('[FEED] Loading videos with multiple strategies...');
+      console.log('[FEED] Loading wolfpack_videos with multiple strategies...');
       setLoading(true);
       setError(null);
       
@@ -84,9 +102,8 @@ export default function OptimizedWolfpackFeedPage() {
         ]);
         
         if (!cachedError && cachedData && cachedData.length > 0) {
-          console.log('[FEED] Strategy 1 SUCCESS: Got', cachedData.length, 'cached videos');
-          setVideos(cachedData);
-          setLoading(false);
+          console.log('[FEED] Strategy 1 SUCCESS: Got', cachedData.length, 'cached wolfpack_videos');
+          setwolfpack_videos(cachedData);
           return;
         }
         console.log('[FEED] Strategy 1 failed:', cachedError?.message || 'No cached data');
@@ -94,43 +111,65 @@ export default function OptimizedWolfpackFeedPage() {
         console.log('[FEED] Strategy 1 exception:', e.message);
       }
 
-      // Strategy 2: Try lightweight feed function
+      // Strategy 2: Direct query to wolfpack_videos table
       try {
-        console.log('[FEED] Strategy 2: Lightweight feed...');
+        console.log('[FEED] Strategy 2: Direct table query...');
         
-        const { data: liteData, error: liteError } = await Promise.race([
-          supabase.rpc('get_wolfpack_feed_lite'),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Lite feed timeout')), 5000)
-          )
-        ]);
+        const { data: videoData, error: videoError } = await supabase
+          .from('wolfpack_videos')
+          .select(`
+            id,
+            user_id,
+            title,
+            description,
+            caption,
+            video_url,
+            thumbnail_url,
+            like_count,
+            comment_count,
+            view_count,
+            created_at,
+            users!user_id (
+              id,
+              display_name,
+              username,
+              first_name,
+              last_name,
+              avatar_url,
+              profile_image_url
+            )
+          `)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(20);
 
-        if (!liteError && liteData && Array.isArray(liteData) && liteData.length > 0) {
-          console.log('[FEED] Strategy 2 SUCCESS: Got', liteData.length, 'lite videos');
+        console.log('[FEED] Strategy 2 query completed:', { videoData: videoData?.length, videoError });
+
+        if (!videoError && videoData && videoData.length > 0) {
+          console.log('[FEED] Strategy 2 SUCCESS: Got', videoData.length, 'real videos from database');
           
-          // Transform the JSON data to match expected format
-          const transformedVideos = liteData.map(video => ({
+          // Transform the data to match expected format
+          const transformedVideos = videoData.map(video => ({
             id: video.id,
             user_id: video.user_id,
-            username: video.username || 'Anonymous',
-            avatar_url: video.avatar_url,
-            caption: video.content || '',
-            video_url: video.media_url,
+            username: video.users?.display_name || video.users?.username || video.users?.first_name || 'Anonymous',
+            avatar_url: video.users?.profile_image_url || video.users?.avatar_url,
+            caption: video.caption || video.description || video.title || '',
+            video_url: video.video_url,
             thumbnail_url: video.thumbnail_url,
-            likes_count: video.likes_count || 0,
-            comments_count: video.comments_count || 0,
-            shares_count: video.shares_count || 0,
+            likes_count: video.like_count || 0,
+            wolfpack_comments_count: video.comment_count || 0,
+            shares_count: 0,
             created_at: video.created_at,
             music_name: 'Original Sound',
-            hashtags: video.hashtags || [],
-            view_count: video.views_count || 0
+            hashtags: [],
+            view_count: video.view_count || 0
           }));
           
-          setVideos(transformedVideos);
-          setLoading(false);
+          setwolfpack_videos(transformedVideos);
           return;
         }
-        console.log('[FEED] Strategy 2 failed:', liteError?.message || 'No lite data');
+        console.log('[FEED] Strategy 2 failed:', videoError?.message || 'No video data found');
       } catch (e) {
         console.log('[FEED] Strategy 2 exception:', e.message);
       }
@@ -154,10 +193,10 @@ export default function OptimizedWolfpackFeedPage() {
         if (response.ok) {
           const edgeResult = await response.json();
           if (edgeResult.success && edgeResult.data && Array.isArray(edgeResult.data) && edgeResult.data.length > 0) {
-            console.log('[FEED] Strategy 3 SUCCESS: Got', edgeResult.data.length, 'videos from', edgeResult.meta?.functionUsed);
+            console.log('[FEED] Strategy 3 SUCCESS: Got', edgeResult.data.length, 'wolfpack_videos from', edgeResult.meta?.functionUsed);
             
             // Transform edge function data to expected format
-            const transformedVideos = edgeResult.data.map(video => ({
+            const transformedwolfpack_videos = edgeResult.data.map(video => ({
               id: video.id,
               user_id: video.user_id,
               username: video.username || 'Anonymous',
@@ -166,7 +205,7 @@ export default function OptimizedWolfpackFeedPage() {
               video_url: video.media_url,
               thumbnail_url: video.thumbnail_url,
               likes_count: video.likes_count || 0,
-              comments_count: video.comments_count || 0,
+              wolfpack_comments_count: video.comment_count || 0,
               shares_count: video.shares_count || 0,
               created_at: video.created_at,
               music_name: 'Original Sound',
@@ -174,8 +213,7 @@ export default function OptimizedWolfpackFeedPage() {
               view_count: video.views_count || 0
             }));
             
-            setVideos(transformedVideos);
-            setLoading(false);
+            setwolfpack_videos(transformedwolfpack_videos);
             return;
           }
         }
@@ -187,13 +225,13 @@ export default function OptimizedWolfpackFeedPage() {
       // Strategy 4: Use sample data to ensure UI works
       console.log('[FEED] All strategies failed, using sample data');
       const sampleData = createSampleData();
-      setVideos(sampleData);
+      setwolfpack_videos(sampleData);
       
     } catch (err) {
       console.error('[FEED] Exception in loadFeed:', err);
       setError('Failed to load feed');
       // Even on error, provide sample data so UI works
-      setVideos(createSampleData());
+      setwolfpack_videos(createSampleData());
     } finally {
       console.log('[FEED] Setting loading to false');
       setLoading(false);
@@ -203,15 +241,15 @@ export default function OptimizedWolfpackFeedPage() {
   // Get current user's app ID
   useEffect(() => {
     const getCurrentUser = async () => {
-      if (user) {
+      if (authUser) {
         const userId = await getAppUserId(supabase);
         setAppUserId(userId);
       }
     };
     getCurrentUser();
-  }, [user]);
+  }, [authUser]);
 
-  // Load user's liked videos  
+  // Load user's liked wolfpack_videos  
   const loadUserLikes = useCallback(async () => {
     if (!appUserId) return;
 
@@ -259,7 +297,7 @@ export default function OptimizedWolfpackFeedPage() {
 
   // Handle share
   const handleShare = useCallback((videoId: string) => {
-    const video = videos.find(v => v.id === videoId);
+    const video = wolfpack_videos.find(v => v.id === videoId);
     if (video) {
       setShareVideoData({
         id: videoId,
@@ -268,12 +306,12 @@ export default function OptimizedWolfpackFeedPage() {
       });
       setShowShareModal(true);
     }
-  }, [videos]);
+  }, [wolfpack_videos]);
 
   // Handle like/unlike
   const handleLike = useCallback(async (videoId: string) => {
     if (!appUserId) {
-      alert('Please log in to like videos');
+      alert('Please log in to like wolfpack_videos');
       return;
     }
 
@@ -294,7 +332,7 @@ export default function OptimizedWolfpackFeedPage() {
       });
 
       // Update video like count in local state
-      setVideos(prev => prev.map(video => 
+      setwolfpack_videos(prev => prev.map(video => 
         video.id === videoId 
           ? { 
               ...video, 
@@ -312,55 +350,45 @@ export default function OptimizedWolfpackFeedPage() {
 
   // Handle comment navigation
   const handleComment = useCallback((videoId: string) => {
-    // Navigate to video detail page with comments open
-    router.push(`/wolfpack/video/${videoId}?comments=true`);
+    // Navigate to video detail page with wolfpack_comments open
+    router.push(`/wolfpack/video/${videoId}?wolfpack_comments=true`);
   }, [router]);
 
+  // Handle video deletion
+  const handleDelete = useCallback(async (videoId: string) => {
+    if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('delete_my_video', { 
+        video_id: videoId 
+      });
+
+      if (error) {
+        console.error('Error deleting video:', error);
+        alert('Failed to delete video: ' + error.message);
+        return;
+      }
+
+      if (data && data.success) {
+        // Remove video from local state
+        setwolfpack_videos(prevVideos => prevVideos.filter(v => v.id !== videoId));
+        alert('Video deleted successfully');
+      } else {
+        alert('Failed to delete video: ' + (data?.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Exception deleting video:', err);
+      alert('Failed to delete video');
+    }
+  }, [supabase]);
 
 
 
 
 
-  // Show loading while feed is loading
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center p-4 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-red-900/20 via-black to-red-900/20" />
-          <div className="absolute top-10 left-10 w-32 h-32 bg-red-600/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-10 right-10 w-40 h-40 bg-red-500/10 rounded-full blur-3xl" />
-        </div>
-        
-        <div className="relative z-10 bg-black/80 backdrop-blur-xl rounded-3xl p-8 text-center border border-red-500/30 shadow-2xl shadow-red-900/20 max-w-md w-full">
-          <div className="mb-6">
-            <div className="w-20 h-20 mx-auto bg-gradient-to-br from-red-600 to-red-800 rounded-full flex items-center justify-center mb-4 shadow-lg shadow-red-900/50">
-              <Sparkles className="h-10 w-10 text-white" />
-            </div>
-            <div className="text-red-500 text-sm font-bold tracking-wider uppercase">Wolf Pack</div>
-          </div>
-          
-          <h2 className="text-2xl font-bold mb-4 text-white">Join the Wolf Pack</h2>
-          <p className="mb-4 text-gray-300 leading-relaxed">You need to be at Side Hustle Bar to join the pack</p>
-          
-          <div className="flex items-center justify-center gap-2 text-red-400 mb-6 bg-red-900/20 rounded-lg p-3">
-            <MapPin className="h-5 w-5" />
-            <span className="text-sm font-medium">Location verification required</span>
-          </div>
-          
-          <button 
-            onClick={() => router.push('/wolfpack')}
-            className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all duration-300 transform hover:scale-105 hover:shadow-lg hover:shadow-red-900/50 active:scale-95"
-          >
-            📍 Enable Location & Join Pack
-          </button>
-          
-          <div className="mt-6 pt-6 border-t border-red-500/20">
-            <p className="text-xs text-gray-500 uppercase tracking-wider">Salem Wolf Pack • Side Hustle Bar</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+
 
   // Show loading while feed is loading
   if (loading) {
@@ -391,8 +419,8 @@ export default function OptimizedWolfpackFeedPage() {
     );
   }
 
-  // Show empty state if no videos
-  if (videos.length === 0) {
+  // Show empty state if no wolfpack_videos
+  if (wolfpack_videos.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center p-4">
         <div className="text-center max-w-md">
@@ -405,13 +433,13 @@ export default function OptimizedWolfpackFeedPage() {
           {process.env.NODE_ENV === 'development' && (
             <div className="text-xs text-gray-500 mb-4 p-2 bg-gray-800 rounded">
               <p>Debug Info:</p>
-              <p>Videos: {videos.length}</p>
+              <p>wolfpack_videos: {wolfpack_videos.length}</p>
               <p>Loading: {loading.toString()}</p>
               <p>Error: {error || 'None'}</p>
             </div>
           )}
           <p className="text-gray-300 mb-6 leading-relaxed">
-            No videos found in the Wolf Pack feed.
+            No wolfpack_videos found in the Wolf Pack feed.
           </p>
           <button 
             onClick={loadFeed}
@@ -427,13 +455,13 @@ export default function OptimizedWolfpackFeedPage() {
   return (
     <>
       <TikTokStyleFeed
-        videos={videos}
-        currentUser={user}
+        wolfpack_videos={wolfpack_videos}
+        currentUser={currentUser}
         onLike={handleLike}
         onComment={handleComment}
         onShare={handleShare}
         onFollow={() => {}}
-        onDelete={() => {}}
+        onDelete={handleDelete}
         onCreatePost={() => setShowPostCreator(true)}
         onLoadMore={() => {}}
         hasMore={false}

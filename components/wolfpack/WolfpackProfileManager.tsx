@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { AvatarWithFallback } from '@/components/shared/ImageWithFallback';
 import { ProfileImageUploaderWithHistory } from '@/components/shared/ImageHistoryViewer';
 import { Badge } from '@/components/ui/badge';
-import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { userProfileService, WolfpackProfile, UserProfileUpdate } from '@/lib/services/user-profile.service';
+import { createBrowserClient } from '@supabase/ssr';
 import { 
   Camera, 
   Save, 
@@ -28,7 +28,34 @@ import {
 import { cn } from '@/lib/utils';
 
 // Type definitions based on your Supabase schema
-// WolfProfile type now imported from user-profile.service
+export interface WolfpackProfile {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  auth_id: string | null;
+  display_name: string | null;
+  bio: string | null;
+  favorite_drink: string | null;
+  favorite_song: string | null;
+  instagram_handle: string | null;
+  vibe_status: string | null;
+  wolf_emoji: string | null;
+  looking_for: string | null;
+  gender: string | null;
+  pronouns: string | null;
+  is_profile_visible: boolean;
+  allow_messages: boolean;
+  profile_image_url: string | null;
+  profile_pic_url: string | null;
+  avatar_url: string | null;
+  wolfpack_status: string | null;
+  wolfpack_tier: string | null;
+  location_permissions_granted: boolean;
+  favorite_bartender: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 // Form data interface
 interface FormData {
@@ -93,13 +120,11 @@ const LOOKING_FOR_OPTIONS = [
 ];
 
 export function WolfpackProfileManager() {
-  const { user, loading: userLoading } = useUser();
+  const { currentUser, loading: userLoading } = useAuth();
   const [profile, setProfile] = useState<WolfpackProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setSaving] = useState(false);
-  
-  // No need to initialize supabase client - using service instead
-  
+  const supabase = createClientComponentClient();
   
   // Form state with proper typing
   const [formData, setFormData] = useState<FormData>({
@@ -120,66 +145,107 @@ export function WolfpackProfileManager() {
   });
 
   // Load existing profile
-  const loadProfile = useCallback(async () => {
-    // For new users, we might not have user.id yet, but we can get the auth user ID
-    const { supabase } = await import('@/lib/supabase/client');
+  const loadProfile = async () => {
+    // Get the authenticated user
     const { data: { user: authUser } } = await supabase.auth.getUser();
     
-    if (!user?.id && !authUser?.id) return;
+    if (!currentUser?.id && !authUser?.id) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
-      let profileData;
+      let profileData = null;
       
-      // Try to load profile using database user ID first, fall back to auth ID
-      if (user?.id) {
-        profileData = await userProfileService.getUserProfile(user.id);
-      } else if (authUser?.id) {
-        // For new users, try to load profile using auth ID
-        profileData = await userProfileService.getUserProfileByAuthId(authUser.id);
+      // Try to load profile using database user ID first
+      if (currentUser?.id) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+          
+        if (!error && data) {
+          profileData = data;
+        }
+      }
+      
+      // If no profile found and we have auth ID, try loading by auth_id
+      if (!profileData && authUser?.id) {
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('auth_id', authUser.id)
+          .single();
+          
+        if (!error && data) {
+          profileData = data;
+        }
       }
       
       if (profileData) {
-        setProfile(profileData);
+        setProfile(profileData as WolfpackProfile);
         setFormData({
           display_name: profileData.display_name || '',
           bio: profileData.bio || '',
           favorite_drink: profileData.favorite_drink || '',
           favorite_song: profileData.favorite_song || '',
           instagram_handle: profileData.instagram_handle || '',
-          vibe_status: profileData.vibe_status || '',
+          vibe_status: profileData.vibe_status || 'Ready to party! 🎉',
           wolf_emoji: profileData.wolf_emoji || '🐺',
           looking_for: profileData.looking_for || '',
           gender: profileData.gender || '',
           pronouns: profileData.pronouns || '',
           is_profile_visible: profileData.is_profile_visible ?? true,
           allow_messages: profileData.allow_messages ?? true,
-          favorite_bartender: '', // This field doesn't exist in users table
+          favorite_bartender: profileData.favorite_bartender || '',
           profile_image_url: profileData.profile_image_url || profileData.profile_pic_url || ''
         });
-      } else {
-        // Set default values for new profile
-        const defaultName: string = 
-          (user?.first_name && typeof user.first_name === 'string' ? user.first_name : '') ||
-          (user?.email ? user.email.split('@')[0] : '') ||
-          (authUser?.email ? authUser.email.split('@')[0] : '') ||
-          'Wolf';
-
-        setFormData({
-          display_name: defaultName,
-          bio: '',
-          favorite_drink: '',
-          favorite_song: '',
-          instagram_handle: '',
-          vibe_status: "Ready to party! 🎉",
-          wolf_emoji: '🐺',
-          looking_for: '',
-          gender: '',
-          pronouns: '',
-          is_profile_visible: true,
-          allow_messages: true,
-          favorite_bartender: '',
-          profile_image_url: ''
-        });
+      } else if (authUser?.id) {
+        // No profile exists, create one
+        console.log('No profile found, creating new profile for auth user:', authUser.id);
+        
+        const defaultName = authUser.email ? authUser.email.split('@')[0] : 'Wolf';
+        
+        const { data: newProfile, error: createError } = await supabase
+          .from('users')
+          .insert({
+            auth_id: authUser.id,
+            email: authUser.email!,
+            display_name: defaultName,
+            wolf_emoji: '🐺',
+            vibe_status: 'Ready to party! 🎉',
+            is_profile_visible: true,
+            allow_messages: true,
+            wolfpack_status: 'pending',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+          
+        if (createError) {
+          console.error('Error creating profile:', createError);
+          toast.error('Failed to create profile');
+        } else if (newProfile) {
+          setProfile(newProfile as WolfpackProfile);
+          setFormData({
+            display_name: newProfile.display_name || defaultName,
+            bio: '',
+            favorite_drink: '',
+            favorite_song: '',
+            instagram_handle: '',
+            vibe_status: newProfile.vibe_status || "Ready to party! 🎉",
+            wolf_emoji: newProfile.wolf_emoji || '🐺',
+            looking_for: '',
+            gender: '',
+            pronouns: '',
+            is_profile_visible: true,
+            allow_messages: true,
+            favorite_bartender: '',
+            profile_image_url: ''
+          });
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -187,24 +253,22 @@ export function WolfpackProfileManager() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, user?.first_name, user?.email]);
+  };
 
   useEffect(() => {
-    // Load profile when user is loaded OR when we're not loading and have an authenticated user
+    // Load profile when user is loaded OR when we're not loading
     if (!userLoading) {
       loadProfile();
     }
-  }, [userLoading, loadProfile]);
-
+  }, [userLoading]);
 
   // Save profile with proper typing
   const saveProfile = async (data: FormData = formData, showToast = true) => {
-    // For new users, we might not have user.id yet, but we can get the auth user ID
-    const { supabase } = await import('@/lib/supabase/client');
+    // Get the authenticated user
     const { data: { user: authUser } } = await supabase.auth.getUser();
     
-    if (!user?.id && !authUser?.id) {
-      console.error('Cannot save profile: No user ID available');
+    if (!profile?.id && !authUser?.id) {
+      console.error('Cannot save profile: No profile or auth user available');
       toast.error('Please log in to save your profile');
       return;
     }
@@ -218,9 +282,9 @@ export function WolfpackProfileManager() {
     setSaving(true);
 
     try {
-      // Prepare profile data for the service
-      const profileData: UserProfileUpdate = {
-        display_name: data.display_name || null,
+      // Prepare update data
+      const updateData: any = {
+        display_name: data.display_name,
         bio: data.bio || null,
         favorite_drink: data.favorite_drink || null,
         favorite_song: data.favorite_song || null,
@@ -232,33 +296,51 @@ export function WolfpackProfileManager() {
         pronouns: data.pronouns || null,
         is_profile_visible: data.is_profile_visible,
         allow_messages: data.allow_messages,
+        favorite_bartender: data.favorite_bartender || null,
+        updated_at: new Date().toISOString()
       };
 
       // If data contains profile_image_url (from avatar upload), use it
       if (data.profile_image_url) {
-        profileData.profile_image_url = data.profile_image_url;
-        profileData.profile_pic_url = data.profile_image_url; // Keep both in sync
+        updateData.profile_image_url = data.profile_image_url;
+        updateData.profile_pic_url = data.profile_image_url; // Keep both in sync
       }
 
       let updatedProfile;
       
-      // Try to update using the database user ID first, fall back to auth ID
-      if (user?.id) {
-        updatedProfile = await userProfileService.updateUserProfile(user.id, profileData);
+      // Update using the profile ID if we have it
+      if (profile?.id) {
+        const { data: updated, error } = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('id', profile.id)
+          .select()
+          .single();
+          
+        if (error) throw error;
+        updatedProfile = updated;
       } else if (authUser?.id) {
-        // For new users, use the auth ID to update the profile
-        updatedProfile = await userProfileService.updateUserProfileByAuthId(authUser.id, profileData);
+        // Update by auth_id if that's all we have
+        const { data: updated, error } = await supabase
+          .from('users')
+          .update(updateData)
+          .eq('auth_id', authUser.id)
+          .select()
+          .single();
+          
+        if (error) throw error;
+        updatedProfile = updated;
       } else {
         throw new Error('Unable to identify user for profile update');
       }
       
-      setProfile(updatedProfile);
+      setProfile(updatedProfile as WolfpackProfile);
       
       if (showToast) {
         toast.success('Profile saved successfully!');
       }
       
-      // Reload the profile to refresh the user context
+      // Reload the profile to ensure everything is in sync
       await loadProfile();
       
     } catch (error: any) {
@@ -276,6 +358,24 @@ export function WolfpackProfileManager() {
     }));
   };
 
+  // Handle avatar upload success
+  const handleAvatarUploadSuccess = async (newImageUrl: string) => {
+    // Update form data
+    const updatedData = {
+      ...formData,
+      profile_image_url: newImageUrl
+    };
+    setFormData(updatedData);
+    
+    // Save the profile with the new image
+    await saveProfile(updatedData, false);
+    
+    // Reload profile to get latest data
+    await loadProfile();
+    
+    toast.success('Profile image updated!');
+  };
+
   if (userLoading || isLoading) {
     return (
       <div className="space-y-6">
@@ -286,7 +386,7 @@ export function WolfpackProfileManager() {
     );
   }
 
-  if (!user) {
+  if (!currentUser && !profile) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
@@ -296,7 +396,8 @@ export function WolfpackProfileManager() {
     );
   }
 
-  const avatarUrl = profile?.profile_image_url || profile?.profile_pic_url;
+  const avatarUrl = formData.profile_image_url || profile?.profile_image_url || profile?.profile_pic_url;
+  const profileUserId = profile?.id || currentUser?.id;
 
   return (
     <div className="space-y-6 bottom-nav-safe">
@@ -306,19 +407,19 @@ export function WolfpackProfileManager() {
           <div className="flex flex-col md:flex-row gap-6 items-start">
             {/* Avatar Section with History */}
             <div className="flex flex-col items-center space-y-4">
-              <ProfileImageUploaderWithHistory
-                userId={user.id}
-                currentImageUrl={avatarUrl}
-                displayName={formData.display_name}
-                emoji={formData.wolf_emoji}
-                onSuccess={(newImageUrl) => {
-                  setFormData(prev => ({
-                    ...prev,
-                    profile_image_url: newImageUrl
-                  }));
-                  loadProfile();
-                }}
-              />
+              {profileUserId ? (
+                <ProfileImageUploaderWithHistory
+                  userId={profileUserId}
+                  currentImageUrl={avatarUrl}
+                  displayName={formData.display_name}
+                  emoji={formData.wolf_emoji}
+                  onSuccess={handleAvatarUploadSuccess}
+                />
+              ) : (
+                <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center">
+                  <Camera className="h-8 w-8 text-muted-foreground" />
+                </div>
+              )}
               
               <div className="text-center">
                 <p className="font-medium">{formData.display_name || 'Your Name'}</p>
@@ -373,7 +474,7 @@ export function WolfpackProfileManager() {
               <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
-                value={user?.email || ''}
+                value={profile?.email || currentUser?.email || ''}
                 disabled
                 className="bg-muted text-muted-foreground"
                 placeholder="Your email address"

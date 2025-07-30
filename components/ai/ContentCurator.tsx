@@ -234,7 +234,7 @@ export default function ContentCurator({
     }
 
     // 3. Engagement Score (0-1)
-    const totalInteractions = content.likes_count + content.comments_count + (content.shares_count * 2);
+    const totalInteractions = content.likes_count + content.wolfpack_comments_count + (content.shares_count * 2);
     const engagementScore = Math.min(1.0, totalInteractions / 100); // Normalize to 0-1
     factors.engagement = engagementScore;
     

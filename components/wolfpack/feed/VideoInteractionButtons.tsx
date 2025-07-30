@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 interface VideoInteractionButtonsProps {
   videoId: string;
   likesCount: number;
-  commentsCount: number;
+  wolfpack_commentsCount: number;
   sharesCount: number;
   isLiked?: boolean;
   onLike: (videoId: string) => Promise<void>;
@@ -22,7 +22,7 @@ interface VideoInteractionButtonsProps {
 export default function VideoInteractionButtons({
   videoId,
   likesCount,
-  commentsCount,
+  wolfpack_commentsCount,
   sharesCount,
   isLiked = false,
   onLike,
@@ -102,7 +102,7 @@ export default function VideoInteractionButtons({
           <MessageCircle className="w-6 h-6 text-white" />
         </div>
         <span className="text-white text-xs font-medium mt-1">
-          {commentsCount > 0 ? commentsCount.toLocaleString() : ''}
+          {wolfpack_commentsCount > 0 ? wolfpack_commentsCount.toLocaleString() : ''}
         </span>
       </InteractionButton>
 

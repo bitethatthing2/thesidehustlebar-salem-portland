@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
 interface RealtimeEvent {
@@ -106,8 +106,8 @@ export function useRealtimeSync({
   };
 }
 
-// Specialized hook for comments realtime sync
-export function useRealtimeComments(
+// Specialized hook for wolfpack_comments realtime sync
+export function useRealtimewolfpack_comments(
   postId: string,
   onNewComment: (comment: any) => void,
   onCommentUpdate?: (comment: any) => void,

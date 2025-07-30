@@ -3632,6 +3632,13 @@ export type Database = {
             foreignKeyName: "wolfpack_comments_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_comments_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
             referencedRelation: "wolfpack_feed_cache"
             referencedColumns: ["id"]
           },
@@ -3640,13 +3647,6 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "wolfpack_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_comments_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_public_feed"
             referencedColumns: ["id"]
           },
           {
@@ -4659,6 +4659,13 @@ export type Database = {
             foreignKeyName: "wolfpack_post_hashtags_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_post_hashtags_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
             referencedRelation: "wolfpack_feed_cache"
             referencedColumns: ["id"]
           },
@@ -4667,13 +4674,6 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "wolfpack_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_post_hashtags_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_public_feed"
             referencedColumns: ["id"]
           },
           {
@@ -4723,6 +4723,13 @@ export type Database = {
             foreignKeyName: "wolfpack_post_likes_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_post_likes_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
             referencedRelation: "wolfpack_feed_cache"
             referencedColumns: ["id"]
           },
@@ -4731,13 +4738,6 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "wolfpack_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_post_likes_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_public_feed"
             referencedColumns: ["id"]
           },
           {
@@ -4899,6 +4899,13 @@ export type Database = {
             foreignKeyName: "wolfpack_saved_posts_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_saved_posts_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
             referencedRelation: "wolfpack_feed_cache"
             referencedColumns: ["id"]
           },
@@ -4907,13 +4914,6 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "wolfpack_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_saved_posts_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_public_feed"
             referencedColumns: ["id"]
           },
           {
@@ -5087,6 +5087,13 @@ export type Database = {
             foreignKeyName: "wolfpack_shares_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_shares_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
             referencedRelation: "wolfpack_feed_cache"
             referencedColumns: ["id"]
           },
@@ -5095,13 +5102,6 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "wolfpack_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_shares_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_public_feed"
             referencedColumns: ["id"]
           },
           {
@@ -7340,6 +7340,151 @@ export type Database = {
         }
         Relationships: []
       }
+      videos: {
+        Row: {
+          allow_comments: boolean | null
+          allow_duets: boolean | null
+          allow_stitches: boolean | null
+          aspect_ratio: string | null
+          comment_count: number | null
+          created_at: string | null
+          description: string | null
+          duration_seconds: number | null
+          id: string | null
+          is_active: boolean | null
+          is_featured: boolean | null
+          like_count: number | null
+          location_id: string | null
+          metadata: Json | null
+          processing_status: string | null
+          share_count: number | null
+          tags: string[] | null
+          thumbnail_url: string | null
+          title: string | null
+          updated_at: string | null
+          user_id: string | null
+          video_url: string | null
+          view_count: number | null
+          visibility: string | null
+        }
+        Insert: {
+          allow_comments?: boolean | null
+          allow_duets?: boolean | null
+          allow_stitches?: boolean | null
+          aspect_ratio?: string | null
+          comment_count?: number | null
+          created_at?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          like_count?: number | null
+          location_id?: string | null
+          metadata?: Json | null
+          processing_status?: string | null
+          share_count?: number | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          video_url?: string | null
+          view_count?: number | null
+          visibility?: string | null
+        }
+        Update: {
+          allow_comments?: boolean | null
+          allow_duets?: boolean | null
+          allow_stitches?: boolean | null
+          aspect_ratio?: string | null
+          comment_count?: number | null
+          created_at?: string | null
+          description?: string | null
+          duration_seconds?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          is_featured?: boolean | null
+          like_count?: number | null
+          location_id?: string | null
+          metadata?: Json | null
+          processing_status?: string | null
+          share_count?: number | null
+          tags?: string[] | null
+          thumbnail_url?: string | null
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          video_url?: string | null
+          view_count?: number | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wolfpack_videos_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "active_wolfpack_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "current_user_profile"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_interaction_permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "user_storage_stats"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "wolfpack_active_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_videos_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "wolfpack_active_members"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       wolfpack_active_chats: {
         Row: {
           created_at: string | null
@@ -7780,93 +7925,6 @@ export type Database = {
           },
         ]
       }
-      wolfpack_public_feed: {
-        Row: {
-          avatar_url: string | null
-          caption: string | null
-          comment_count: number | null
-          created_at: string | null
-          description: string | null
-          display_name: string | null
-          duration_seconds: number | null
-          first_name: string | null
-          hashtags: string[] | null
-          id: string | null
-          last_name: string | null
-          like_count: number | null
-          music_name: string | null
-          profile_image_url: string | null
-          share_count: number | null
-          thumbnail_url: string | null
-          title: string | null
-          user_following: boolean | null
-          user_id: string | null
-          user_liked: boolean | null
-          username: string | null
-          verified: boolean | null
-          video_url: string | null
-          view_count: number | null
-          wolf_emoji: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "active_wolfpack_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "current_user_profile"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_interaction_permissions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "user_storage_stats"
-            referencedColumns: ["user_id"]
-          },
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_active_members"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_videos_user_id_fkey1"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_active_members"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
       wolfpack_user_conversations: {
         Row: {
           conversation_id: string | null
@@ -7899,6 +7957,13 @@ export type Database = {
             foreignKeyName: "wolfpack_post_likes_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_post_likes_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
             referencedRelation: "wolfpack_feed_cache"
             referencedColumns: ["id"]
           },
@@ -7907,13 +7972,6 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "wolfpack_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_post_likes_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_public_feed"
             referencedColumns: ["id"]
           },
           {
@@ -8143,6 +8201,13 @@ export type Database = {
             foreignKeyName: "wolfpack_shares_video_id_fkey"
             columns: ["video_id"]
             isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wolfpack_shares_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
             referencedRelation: "wolfpack_feed_cache"
             referencedColumns: ["id"]
           },
@@ -8151,13 +8216,6 @@ export type Database = {
             columns: ["video_id"]
             isOneToOne: false
             referencedRelation: "wolfpack_posts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wolfpack_shares_video_id_fkey"
-            columns: ["video_id"]
-            isOneToOne: false
-            referencedRelation: "wolfpack_public_feed"
             referencedColumns: ["id"]
           },
           {
@@ -8185,7 +8243,6 @@ export type Database = {
           aspect_ratio: string | null
           caption: string | null
           comment_count: number | null
-          comments_count: number | null
           created_at: string | null
           description: string | null
           duration: number | null
@@ -8201,7 +8258,6 @@ export type Database = {
           is_ad: boolean | null
           is_featured: boolean | null
           like_count: number | null
-          likes_count: number | null
           location_id: string | null
           location_lat: number | null
           location_lng: number | null
@@ -8216,14 +8272,13 @@ export type Database = {
           tags: string[] | null
           thumbnail_url: string | null
           title: string | null
-          total_likes: number | null
           trending_score: number | null
           updated_at: string | null
-          user_has_liked: boolean | null
+          user_following: boolean | null
           user_id: string | null
+          user_liked: boolean | null
           video_url: string | null
           view_count: number | null
-          views_count: number | null
           visibility: string | null
         }
         Insert: {
@@ -8233,8 +8288,7 @@ export type Database = {
           allow_stitches?: boolean | null
           aspect_ratio?: string | null
           caption?: string | null
-          comment_count?: number | null
-          comments_count?: number | null
+          comment_count?: never
           created_at?: string | null
           description?: string | null
           duration?: number | null
@@ -8249,8 +8303,7 @@ export type Database = {
           is_active?: boolean | null
           is_ad?: boolean | null
           is_featured?: boolean | null
-          like_count?: number | null
-          likes_count?: number | null
+          like_count?: never
           location_id?: string | null
           location_lat?: number | null
           location_lng?: number | null
@@ -8265,14 +8318,13 @@ export type Database = {
           tags?: string[] | null
           thumbnail_url?: string | null
           title?: string | null
-          total_likes?: never
           trending_score?: number | null
           updated_at?: string | null
-          user_has_liked?: never
+          user_following?: never
           user_id?: string | null
+          user_liked?: never
           video_url?: string | null
-          view_count?: number | null
-          views_count?: number | null
+          view_count?: never
           visibility?: string | null
         }
         Update: {
@@ -8282,8 +8334,7 @@ export type Database = {
           allow_stitches?: boolean | null
           aspect_ratio?: string | null
           caption?: string | null
-          comment_count?: number | null
-          comments_count?: number | null
+          comment_count?: never
           created_at?: string | null
           description?: string | null
           duration?: number | null
@@ -8298,8 +8349,7 @@ export type Database = {
           is_active?: boolean | null
           is_ad?: boolean | null
           is_featured?: boolean | null
-          like_count?: number | null
-          likes_count?: number | null
+          like_count?: never
           location_id?: string | null
           location_lat?: number | null
           location_lng?: number | null
@@ -8314,14 +8364,13 @@ export type Database = {
           tags?: string[] | null
           thumbnail_url?: string | null
           title?: string | null
-          total_likes?: never
           trending_score?: number | null
           updated_at?: string | null
-          user_has_liked?: never
+          user_following?: never
           user_id?: string | null
+          user_liked?: never
           video_url?: string | null
-          view_count?: number | null
-          views_count?: number | null
+          view_count?: never
           visibility?: string | null
         }
         Relationships: [
@@ -11253,6 +11302,19 @@ export type Database = {
           created_at: string
           username: string
           avatar_url: string
+        }[]
+      }
+      get_wolfpack_feed_cached: {
+        Args: { limit_count: number; offset_count: number }
+        Returns: {
+          id: string
+          user_id: string
+          title: string
+          description: string
+          video_url: string
+          like_count: number
+          comment_count: number
+          created_at: string
         }[]
       }
       get_wolfpack_feed_cursor: {

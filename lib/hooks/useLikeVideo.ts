@@ -21,14 +21,20 @@ export function useLikeVideo(): LikeVideoHookReturn {
       }
 
       if (isCurrentlyLiked) {
-        // Remove like - note: table should be wolfpack_post_likes based on your existing structure
+        // Remove like - use correct table name
         const { error } = await supabase
           .from('wolfpack_post_likes')
           .delete()
           .eq('video_id', videoId)
           .eq('user_id', appUserId);
 
-        if (error) throw error;
+        if (error) {
+          if (error.code === '42P01') {
+            console.warn('Like functionality disabled - database table missing');
+            return { success: false, error: 'Like functionality temporarily disabled' };
+          }
+          throw error;
+        }
       } else {
         // Add like
         const { error } = await supabase
@@ -38,7 +44,13 @@ export function useLikeVideo(): LikeVideoHookReturn {
             user_id: appUserId // Use app user ID, not auth ID
           });
 
-        if (error) throw error;
+        if (error) {
+          if (error.code === '42P01') {
+            console.warn('Like functionality disabled - database table missing');
+            return { success: false, error: 'Like functionality temporarily disabled' };
+          }
+          throw error;
+        }
       }
 
       return { success: true };

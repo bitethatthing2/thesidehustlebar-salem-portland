@@ -258,7 +258,7 @@ WITH ("autovacuum_vacuum_scale_factor"='0.1', "autovacuum_analyze_scale_factor"=
 ALTER TABLE "public"."wolfpack_comments" OWNER TO "postgres";
 
 
-COMMENT ON TABLE "public"."wolfpack_comments" IS 'CORE: Comments on videos/posts';
+COMMENT ON TABLE "public"."wolfpack_comments" IS 'CORE: wolfpack_comments on wolfpack_videos/posts';
 
 
 
@@ -269,7 +269,7 @@ CREATE OR REPLACE FUNCTION "public"."add_comment"("p_video_id" "uuid", "p_conten
 DECLARE
     v_comment wolfpack_comments;
 BEGIN
-    INSERT INTO wolfpack_comments (video_id, user_id, content, parent_comment_id)
+    INSERT INTO wolfpack_comments(video_id, user_id, content, parent_comment_id)
     VALUES (p_video_id, auth.uid(), p_content, p_parent_comment_id)
     RETURNING * INTO v_comment;
     
@@ -432,13 +432,13 @@ DECLARE
     v_result JSONB;
 BEGIN
     -- Insert the comment
-    INSERT INTO wolfpack_comments (video_id, user_id, content, parent_comment_id)
+    INSERT INTO wolfpack_comments(video_id, user_id, content, parent_comment_id)
     VALUES (p_video_id, p_user_id, p_content, p_parent_comment_id)
     RETURNING id INTO v_comment_id;
     
     -- Update comment count on video
     UPDATE wolfpack_videos 
-    SET comments_count = comments_count + 1
+    SET wolfpack_comments_count = wolfpack_comments_count + 1
     WHERE id = p_video_id;
     
     -- Return the created comment with user info
@@ -454,7 +454,7 @@ BEGIN
             'avatar_url', u.avatar_url
         )
     ) INTO v_result
-    FROM wolfpack_comments c
+    FROM wolfpack_commentsc
     JOIN users u ON c.user_id = u.id
     WHERE c.id = v_comment_id;
     
@@ -1876,7 +1876,7 @@ BEGIN
     VALUES (v_user_id, 'view_private_message_overview', json_build_object('timestamp', NOW()));
     
     -- Get active conversations
-    SELECT COUNT(DISTINCT ARRAY[LEAST(from_user_id, to_user_id), GREATEST(from_user_id, to_user_id)])
+    SELECT COUNT(DISTINCT ARRAY[LEAST(from_user_id, recipient_id), GREATEST(from_user_id, recipient_id)])
     INTO v_active_conversations
     FROM wolf_private_messages
     WHERE created_at >= NOW() - INTERVAL '7 days';
@@ -1942,7 +1942,7 @@ BEGIN
     -- Skip auth check for now - just return the data
     
     -- Get active conversations
-    SELECT COUNT(DISTINCT ARRAY[LEAST(from_user_id, to_user_id), GREATEST(from_user_id, to_user_id)])
+    SELECT COUNT(DISTINCT ARRAY[LEAST(from_user_id, recipient_id), GREATEST(from_user_id, recipient_id)])
     INTO v_active_conversations
     FROM wolf_private_messages
     WHERE created_at >= NOW() - INTERVAL '7 days';
@@ -2023,7 +2023,7 @@ BEGIN
     END IF;
     
     -- Rest of the function logic...
-    SELECT COUNT(DISTINCT ARRAY[LEAST(from_user_id, to_user_id), GREATEST(from_user_id, to_user_id)])
+    SELECT COUNT(DISTINCT ARRAY[LEAST(from_user_id, recipient_id), GREATEST(from_user_id, recipient_id)])
     INTO v_active_conversations
     FROM wolf_private_messages
     WHERE created_at >= NOW() - INTERVAL '7 days';
@@ -2073,7 +2073,7 @@ $$;
 ALTER FUNCTION "public"."admin_get_private_message_overview_explicit"("p_user_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."admin_get_private_messages"("p_limit" integer DEFAULT 100, "p_offset" integer DEFAULT 0, "p_user_filter" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("message_id" "uuid", "from_user_id" "uuid", "from_email" "text", "from_name" "text", "to_user_id" "uuid", "to_email" "text", "to_name" "text", "message" "text", "image_url" "text", "is_read" boolean, "created_at" timestamp with time zone, "read_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."admin_get_private_messages"("p_limit" integer DEFAULT 100, "p_offset" integer DEFAULT 0, "p_user_filter" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("message_id" "uuid", "from_user_id" "uuid", "from_email" "text", "from_name" "text", "recipient_id" "uuid", "to_email" "text", "to_name" "text", "message" "text", "image_url" "text", "is_read" boolean, "created_at" timestamp with time zone, "read_at" timestamp with time zone)
     LANGUAGE "plpgsql" STABLE SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -2092,7 +2092,7 @@ BEGIN
         pm.from_user_id,
         u_from.email,
         COALESCE(u_from.first_name || ' ' || u_from.last_name, u_from.email),
-        pm.to_user_id,
+        pm.recipient_id,
         u_to.email,
         COALESCE(u_to.first_name || ' ' || u_to.last_name, u_to.email),
         pm.message,
@@ -2102,8 +2102,8 @@ BEGIN
         pm.read_at
     FROM wolf_private_messages pm
     JOIN users u_from ON u_from.id = pm.from_user_id
-    JOIN users u_to ON u_to.id = pm.to_user_id
-    WHERE (p_user_filter IS NULL OR pm.from_user_id = p_user_filter OR pm.to_user_id = p_user_filter)
+    JOIN users u_to ON u_to.id = pm.recipient_id
+    WHERE (p_user_filter IS NULL OR pm.from_user_id = p_user_filter OR pm.recipient_id = p_user_filter)
     ORDER BY pm.created_at DESC
     LIMIT p_limit
     OFFSET p_offset;
@@ -2339,7 +2339,7 @@ BEGIN
             wpm.is_read
         FROM wolf_private_messages wpm
         JOIN users u_from ON wpm.from_user_id = u_from.id
-        JOIN users u_to ON wpm.to_user_id = u_to.id
+        JOIN users u_to ON wpm.recipient_id = u_to.id
         LEFT JOIN wolf_profiles wp_from ON u_from.id = wp_from.user_id
         LEFT JOIN wolf_profiles wp_to ON u_to.id = wp_to.user_id
         ORDER BY wpm.created_at DESC
@@ -2937,9 +2937,9 @@ BEGIN
     INTO result, search_count
     FROM wolf_private_messages wpm
     JOIN users u_from ON u_from.id = wpm.from_user_id
-    JOIN users u_to ON u_to.id = wpm.to_user_id
+    JOIN users u_to ON u_to.id = wpm.recipient_id
     LEFT JOIN wolf_profiles wp_from ON wp_from.user_id = wpm.from_user_id
-    LEFT JOIN wolf_profiles wp_to ON wp_to.user_id = wpm.to_user_id
+    LEFT JOIN wolf_profiles wp_to ON wp_to.user_id = wpm.recipient_id
     WHERE 
         u_from.deleted_at IS NULL 
         AND u_to.deleted_at IS NULL
@@ -3100,7 +3100,7 @@ $$;
 ALTER FUNCTION "public"."admin_send_chat_message"("p_message" "text", "p_image_url" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."admin_send_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_id" "uuid" DEFAULT NULL::"uuid") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."admin_send_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_id" "uuid" DEFAULT NULL::"uuid") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -3119,12 +3119,12 @@ BEGIN
     -- Insert the message
     INSERT INTO wolf_private_messages (
         from_user_id,
-        to_user_id,
+        recipient_id,
         message,
         image_id
     ) VALUES (
         v_from_user_id,
-        p_to_user_id,
+        p_recipient_id,
         p_message,
         p_image_id
     ) RETURNING id INTO v_message_id;
@@ -3134,10 +3134,10 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."admin_send_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_id" "uuid") OWNER TO "postgres";
+ALTER FUNCTION "public"."admin_send_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."admin_send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text" DEFAULT NULL::"text") RETURNS "json"
+CREATE OR REPLACE FUNCTION "public"."admin_send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text" DEFAULT NULL::"text") RETURNS "json"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -3161,7 +3161,7 @@ BEGIN
     -- Insert the message
     INSERT INTO wolf_private_messages (
         from_user_id,
-        to_user_id,
+        recipient_id,
         message,
         image_url,
         sender_id,
@@ -3169,11 +3169,11 @@ BEGIN
         created_at
     ) VALUES (
         v_from_user_id,
-        p_to_user_id,
+        p_recipient_id,
         p_message,
         p_image_url,
         v_from_user_id,
-        p_to_user_id,
+        p_recipient_id,
         NOW()
     ) RETURNING id INTO v_message_id;
     
@@ -3186,7 +3186,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."admin_send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."admin_send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."admin_send_push_notification"("p_title" "text", "p_body" "text", "p_target_type" "text", "p_target_users" "uuid"[] DEFAULT NULL::"uuid"[], "p_target_role" "text" DEFAULT NULL::"text") RETURNS "json"
@@ -3774,7 +3774,7 @@ BEGIN
             SET is_flagged = true, flag_reason = 'auto_moderation'
             WHERE id = p_content_id;
         ELSIF p_content_type = 'comment' THEN
-            UPDATE wolfpack_comments 
+            UPDATE wolfpack_comments
             SET is_hidden = true
             WHERE id = p_content_id;
         END IF;
@@ -4718,7 +4718,7 @@ BEGIN
     -- Insert message
     INSERT INTO wolf_private_messages (
         from_user_id,
-        to_user_id,
+        recipient_id,
         message
     ) VALUES (
         auth.uid(),
@@ -6461,7 +6461,7 @@ BEGIN
             -- Check content system
             SELECT jsonb_build_object(
                 'service', 'content',
-                'videos_24h', (SELECT COUNT(*) FROM wolfpack_videos WHERE created_at > NOW() - INTERVAL '24 hours'),
+                'wolfpack_videos_24h', (SELECT COUNT(*) FROM wolfpack_videos WHERE created_at > NOW() - INTERVAL '24 hours'),
                 'flagged_content', (SELECT COUNT(*) FROM wolfpack_videos WHERE is_flagged),
                 'moderation_queue', (SELECT COUNT(*) FROM content_moderation_logs WHERE action_taken = 'flagged_review'),
                 'ingestion_jobs_pending', (SELECT COUNT(*) FROM content_ingestion_jobs WHERE status = 'pending'),
@@ -6523,7 +6523,7 @@ BEGIN
     
     -- Check if within limits
     RETURN (v_quota.used_storage_bytes + p_file_size <= v_quota.max_storage_bytes)
-        AND (v_quota.video_count < v_quota.max_videos);
+        AND (v_quota.video_count < v_quota.max_wolfpack_videos);
 END;
 $$;
 
@@ -6916,7 +6916,7 @@ BEGIN
   v_current_user_id := (SELECT id FROM public.users WHERE auth_id = v_current_auth_id);
   
   SELECT user_id INTO v_video_user_id
-  FROM public.videos 
+  FROM public.wolfpack_videos 
   WHERE id = video_id;
   
   v_video_exists := v_video_user_id IS NOT NULL;
@@ -7801,13 +7801,13 @@ CREATE OR REPLACE FUNCTION "public"."create_activity_notification"() RETURNS "tr
 BEGIN
   -- Create notification for activity
   INSERT INTO public.notifications (
-    to_user_id,
+    recipient_id,
     from_user_id,
     type,
     activity_id,
     created_at
   ) VALUES (
-    NEW.to_user_id,
+    NEW.recipient_id,
     NEW.from_user_id,
     'activity',
     NEW.id,
@@ -8282,7 +8282,7 @@ DECLARE
 BEGIN
   v_user_id := auth.uid();
   
-  INSERT INTO public.comments (video_id, content, parent_id, user_id)
+  INSERT INTO public.wolfpack_comments (video_id, content, parent_id, user_id)
   VALUES (p_video_id, p_content, p_parent_id, v_user_id)
   RETURNING id INTO v_comment_id;
   
@@ -8975,13 +8975,13 @@ DECLARE
 BEGIN
   -- Get the owner of the video
   SELECT user_id INTO v_video_owner_id
-  FROM public.videos
+  FROM public.wolfpack_videos
   WHERE id = NEW.video_id;
   
   -- Don't create notification if user is liking their own video
   IF v_video_owner_id != NEW.user_id THEN
     INSERT INTO public.notifications (
-      to_user_id,
+      recipient_id,
       from_user_id,
       type,
       video_id,
@@ -9987,7 +9987,7 @@ CREATE OR REPLACE FUNCTION "public"."decrement_comment_count"() RETURNS "trigger
     AS $$
 BEGIN
     UPDATE wolfpack_videos 
-    SET comments_count = GREATEST(0, COALESCE(comments_count, 0) - 1)
+    SET wolfpack_comments_count = GREATEST(0, COALESCE(wolfpack_comments_count, 0) - 1)
     WHERE id = OLD.video_id;
     RETURN OLD;
 END;
@@ -10105,7 +10105,7 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'You do not own this video');
   END IF;
   
-  DELETE FROM public.videos WHERE id = video_id;
+  DELETE FROM public.wolfpack_videos WHERE id = video_id;
   RETURN jsonb_build_object('success', true);
 END;
 $$;
@@ -10864,7 +10864,7 @@ SELECT * FROM get_wolfpack_for_you_feed(user_id, 20, 0);
 
 SELECT * FROM get_wolfpack_posts_interactions(user_id, video_ids);
 
-SELECT * FROM get_wolfpack_posts_comments(video_ids, 3);
+SELECT * FROM get_wolfpack_posts_wolfpack_comments(video_ids, 3);
 
 This loads a feed of 20 posts with only 3 queries instead of 100+ queries.';
 END;
@@ -11419,7 +11419,7 @@ BEGIN
         caption,
         post_type,
         visibility,
-        allows_comments,
+        allows_wolfpack_comments,
         allows_duets,
         allows_downloads,
         location_tagged,
@@ -12234,7 +12234,7 @@ BEGIN
     v_timestamp := EXTRACT(EPOCH FROM NOW())::BIGINT * 1000 + (RANDOM() * 999)::INT;
     
     -- Create path following TikTok-like structure
-    v_path := format('%s/videos/%s.mp4', v_user_id::TEXT, v_timestamp::TEXT);
+    v_path := format('%s/wolfpack_videos/%s.mp4', v_user_id::TEXT, v_timestamp::TEXT);
     
     RETURN v_path;
 END;
@@ -13296,7 +13296,7 @@ BEGIN
     -- Mark messages as read when viewing
     UPDATE wolf_private_messages 
     SET is_read = true, read_at = NOW()
-    WHERE to_user_id = auth.uid() 
+    WHERE recipient_id = auth.uid() 
     AND from_user_id = p_other_user_id
     AND is_read = false;
     
@@ -13311,8 +13311,8 @@ BEGIN
         pm.is_read
     FROM wolf_private_messages pm
     WHERE (
-        (pm.from_user_id = auth.uid() AND pm.to_user_id = p_other_user_id) OR
-        (pm.from_user_id = p_other_user_id AND pm.to_user_id = auth.uid())
+        (pm.from_user_id = auth.uid() AND pm.recipient_id = p_other_user_id) OR
+        (pm.from_user_id = p_other_user_id AND pm.recipient_id = auth.uid())
     )
     ORDER BY pm.created_at DESC
     LIMIT p_limit;
@@ -13446,7 +13446,7 @@ $$;
 ALTER FUNCTION "public"."get_connection_stats"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_conversation"("p_user1_id" "uuid", "p_user2_id" "uuid", "p_limit" integer DEFAULT 50) RETURNS TABLE("id" "uuid", "from_user_id" "uuid", "to_user_id" "uuid", "message" "text", "image_url" "text", "is_read" boolean, "created_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."get_conversation"("p_user1_id" "uuid", "p_user2_id" "uuid", "p_limit" integer DEFAULT 50) RETURNS TABLE("id" "uuid", "from_user_id" "uuid", "recipient_id" "uuid", "message" "text", "image_url" "text", "is_read" boolean, "created_at" timestamp with time zone)
     LANGUAGE "plpgsql" STABLE SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -13455,16 +13455,16 @@ BEGIN
     SELECT 
         wpm.id,
         wpm.from_user_id,
-        wpm.to_user_id,
+        wpm.recipient_id,
         wpm.message,
         wpm.image_url,
         wpm.is_read,
         wpm.created_at
     FROM wolf_private_messages wpm
     WHERE 
-        (wpm.from_user_id = p_user1_id AND wpm.to_user_id = p_user2_id)
+        (wpm.from_user_id = p_user1_id AND wpm.recipient_id = p_user2_id)
         OR 
-        (wpm.from_user_id = p_user2_id AND wpm.to_user_id = p_user1_id)
+        (wpm.from_user_id = p_user2_id AND wpm.recipient_id = p_user1_id)
     ORDER BY wpm.created_at DESC
     LIMIT p_limit;
 END;
@@ -15617,7 +15617,7 @@ $$;
 ALTER FUNCTION "public"."get_performance_metrics"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_post_or_video"("content_id" "uuid") RETURNS TABLE("id" "uuid", "user_id" "uuid", "video_url" "text", "thumbnail_url" "text", "caption" "text", "likes_count" integer, "comments_count" integer, "views_count" integer, "created_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."get_post_or_video"("content_id" "uuid") RETURNS TABLE("id" "uuid", "user_id" "uuid", "video_url" "text", "thumbnail_url" "text", "caption" "text", "likes_count" integer, "wolfpack_comments_count" integer, "views_count" integer, "created_at" timestamp with time zone)
     LANGUAGE "plpgsql"
     SET "search_path" TO 'public', 'pg_catalog'
     AS $$
@@ -15630,7 +15630,7 @@ BEGIN
         v.thumbnail_url,
         v.caption,
         v.likes_count,
-        v.comments_count,
+        v.wolfpack_comments_count,
         v.views_count,
         v.created_at
     FROM wolfpack_videos v
@@ -15651,12 +15651,12 @@ BEGIN
     WITH conversations AS (
         SELECT DISTINCT
             CASE 
-                WHEN from_user_id = auth.uid() THEN to_user_id
+                WHEN from_user_id = auth.uid() THEN recipient_id
                 ELSE from_user_id
             END as other_user,
             MAX(created_at) as last_msg_time
         FROM wolf_private_messages
-        WHERE from_user_id = auth.uid() OR to_user_id = auth.uid()
+        WHERE from_user_id = auth.uid() OR recipient_id = auth.uid()
         GROUP BY other_user
     ),
     last_messages AS (
@@ -15667,8 +15667,8 @@ BEGIN
             pm.from_user_id = auth.uid() as is_from_me
         FROM conversations c
         JOIN wolf_private_messages pm ON 
-            ((pm.from_user_id = auth.uid() AND pm.to_user_id = c.other_user) OR
-             (pm.from_user_id = c.other_user AND pm.to_user_id = auth.uid()))
+            ((pm.from_user_id = auth.uid() AND pm.recipient_id = c.other_user) OR
+             (pm.from_user_id = c.other_user AND pm.recipient_id = auth.uid()))
             AND pm.created_at = c.last_msg_time
     )
     SELECT 
@@ -15683,7 +15683,7 @@ BEGIN
     JOIN wolf_profiles wp ON wp.user_id = lm.other_user
     LEFT JOIN wolf_private_messages pm ON 
         pm.from_user_id = lm.other_user 
-        AND pm.to_user_id = auth.uid()
+        AND pm.recipient_id = auth.uid()
         AND pm.is_read = false
     GROUP BY lm.other_user, wp.display_name, wp.wolf_emoji, lm.message, lm.created_at, lm.is_from_me
     ORDER BY lm.created_at DESC;
@@ -15702,7 +15702,7 @@ BEGIN
     -- Mark messages as read when viewing conversation
     UPDATE wolf_private_messages 
     SET is_read = true, read_at = NOW()
-    WHERE to_user_id = p_user_id 
+    WHERE recipient_id = p_user_id 
     AND from_user_id = p_other_user_id
     AND is_read = false;
     
@@ -15722,8 +15722,8 @@ BEGIN
     JOIN users u ON u.id = pm.from_user_id
     LEFT JOIN wolf_profiles wp ON wp.user_id = u.id
     WHERE (
-        (pm.from_user_id = p_user_id AND pm.to_user_id = p_other_user_id) OR
-        (pm.from_user_id = p_other_user_id AND pm.to_user_id = p_user_id)
+        (pm.from_user_id = p_user_id AND pm.recipient_id = p_other_user_id) OR
+        (pm.from_user_id = p_other_user_id AND pm.recipient_id = p_user_id)
     )
     ORDER BY pm.created_at DESC
     LIMIT p_limit;
@@ -17184,7 +17184,7 @@ CREATE OR REPLACE FUNCTION "public"."get_unread_count"("p_user_id" "uuid") RETUR
     AS $$
     SELECT COUNT(*)
     FROM wolf_private_messages
-    WHERE to_user_id = p_user_id AND is_read = false;
+    WHERE recipient_id = p_user_id AND is_read = false;
 $$;
 
 
@@ -17256,7 +17256,7 @@ BEGIN
     -- Get total unread
     SELECT COUNT(*) INTO v_total_unread
     FROM wolf_private_messages
-    WHERE to_user_id = v_user_id AND is_read = false;
+    WHERE recipient_id = v_user_id AND is_read = false;
     
     -- Get unread by user
     SELECT jsonb_object_agg(from_user_id, unread_count)
@@ -17264,7 +17264,7 @@ BEGIN
     FROM (
         SELECT from_user_id, COUNT(*) as unread_count
         FROM wolf_private_messages
-        WHERE to_user_id = v_user_id AND is_read = false
+        WHERE recipient_id = v_user_id AND is_read = false
         GROUP BY from_user_id
     ) counts;
     
@@ -17352,7 +17352,7 @@ BEGIN
     
     RETURN QUERY
     SELECT 
-        (SELECT COUNT(*) FROM wolf_private_messages WHERE to_user_id = v_user_id AND is_read = false),
+        (SELECT COUNT(*) FROM wolf_private_messages WHERE recipient_id = v_user_id AND is_read = false),
         (SELECT COUNT(*) FROM wolf_connections WHERE user_one_id = v_user_id OR user_two_id = v_user_id),
         (SELECT COUNT(*) FROM wolf_check_ins WHERE checked_out_at IS NULL),
         (SELECT jsonb_agg(
@@ -17492,7 +17492,7 @@ COMMENT ON FUNCTION "public"."get_user_interactions"("user_uuid" "uuid", "intera
 
 
 
-CREATE OR REPLACE FUNCTION "public"."get_user_liked_videos"("target_user_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("video_id" "uuid", "liked_at" timestamp with time zone)
+CREATE OR REPLACE FUNCTION "public"."get_user_liked_wolfpack_videos"("target_user_id" "uuid" DEFAULT NULL::"uuid") RETURNS TABLE("video_id" "uuid", "liked_at" timestamp with time zone)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -17506,7 +17506,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."get_user_liked_videos"("target_user_id" "uuid") OWNER TO "postgres";
+ALTER FUNCTION "public"."get_user_liked_wolfpack_videos"("target_user_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_user_location"() RETURNS TABLE("location_id" "uuid", "location_name" "text")
@@ -17639,7 +17639,7 @@ BEGIN
         'total_posts', COALESCE(COUNT(DISTINCT p.id), 0),
         'total_likes', COALESCE(SUM(p.like_count), 0),
         'total_views', COALESCE(SUM(p.view_count), 0),
-        'total_comments', COALESCE(SUM(p.comment_count), 0),
+        'total_wolfpack_comments', COALESCE(SUM(p.comment_count), 0),
         'total_shares', COALESCE(SUM(p.share_count), 0),
         'engagement_rate', CASE 
             WHEN COUNT(DISTINCT p.id) > 0 THEN 
@@ -17667,7 +17667,7 @@ BEGIN
             'total_posts', 0,
             'total_likes', 0,
             'total_views', 0,
-            'total_comments', 0,
+            'total_wolfpack_comments', 0,
             'total_shares', 0,
             'engagement_rate', 0,
             'is_verified', FALSE,
@@ -17962,7 +17962,7 @@ COMMENT ON FUNCTION "public"."get_venue_pulse_summary"("p_location_id" "uuid", "
 
 
 
-CREATE OR REPLACE FUNCTION "public"."get_video_comments"("p_video_id" "uuid", "p_limit" integer DEFAULT 50, "p_offset" integer DEFAULT 0) RETURNS TABLE("id" "uuid", "video_id" "uuid", "user_id" "uuid", "content" "text", "created_at" timestamp with time zone, "parent_comment_id" "uuid", "like_count" integer, "is_pinned" boolean, "is_edited" boolean, "username" character varying, "full_name" "text", "avatar_url" "text", "email" "text", "user_has_liked" boolean, "reply_count" integer)
+CREATE OR REPLACE FUNCTION "public"."get_video_wolfpack_comments"("p_video_id" "uuid", "p_limit" integer DEFAULT 50, "p_offset" integer DEFAULT 0) RETURNS TABLE("id" "uuid", "video_id" "uuid", "user_id" "uuid", "content" "text", "created_at" timestamp with time zone, "parent_comment_id" "uuid", "like_count" integer, "is_pinned" boolean, "is_edited" boolean, "username" character varying, "full_name" "text", "avatar_url" "text", "email" "text", "user_has_liked" boolean, "reply_count" integer)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -17985,10 +17985,10 @@ BEGIN
         COALESCE(cl.liked, false) as user_has_liked,
         (
             SELECT COUNT(*)::int 
-            FROM wolfpack_comments r 
+            FROM wolfpack_commentsr 
             WHERE r.parent_comment_id = c.id
         ) as reply_count
-    FROM wolfpack_comments c
+    FROM wolfpack_commentsc
     JOIN public.users u ON c.user_id = u.id
     LEFT JOIN LATERAL (
         SELECT true as liked
@@ -17998,7 +17998,7 @@ BEGIN
         LIMIT 1
     ) cl ON true
     WHERE c.video_id = p_video_id
-    AND c.parent_comment_id IS NULL  -- Only top-level comments
+    AND c.parent_comment_id IS NULL  -- Only top-level wolfpack_comments
     ORDER BY 
         c.is_pinned DESC,
         c.created_at DESC
@@ -18008,7 +18008,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."get_video_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) OWNER TO "postgres";
+ALTER FUNCTION "public"."get_video_wolfpack_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."get_video_feed"("p_user_id" "uuid", "p_limit" integer DEFAULT 20, "p_offset" integer DEFAULT 0) RETURNS TABLE("video" "jsonb")
@@ -18024,7 +18024,7 @@ BEGIN
         'thumbnail_url', v.thumbnail_url,
         'caption', v.caption,
         'likes_count', v.likes_count,
-        'comments_count', v.comments_count,
+        'wolfpack_comments_count', v.wolfpack_comments_count,
         'views_count', v.views_count,
         'created_at', v.created_at,
         'is_liked', EXISTS(
@@ -18164,7 +18164,7 @@ CREATE OR REPLACE FUNCTION "public"."get_video_upload_path"("p_user_id" "uuid") 
     SET "search_path" TO 'public'
     AS $$
 BEGIN
-    RETURN p_user_id::TEXT || '/videos/' || 
+    RETURN p_user_id::TEXT || '/wolfpack_videos/' || 
            EXTRACT(EPOCH FROM NOW())::BIGINT::TEXT || '-video.mp4';
 END;
 $$;
@@ -18188,7 +18188,7 @@ BEGIN
         'caption', v.caption,
         'description', v.description,
         'likes_count', v.likes_count,
-        'comments_count', v.comments_count,
+        'wolfpack_comments_count', v.wolfpack_comments_count,
         'views_count', v.views_count,
         'created_at', v.created_at,
         'is_liked', EXISTS(
@@ -18476,7 +18476,7 @@ $$;
 ALTER FUNCTION "public"."get_wolfpack_dashboard"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_wolfpack_feed_with_details"("p_user_id" "uuid" DEFAULT NULL::"uuid", "p_feed_type" "text" DEFAULT 'for_you'::"text", "p_location" "text" DEFAULT NULL::"text", "p_limit" integer DEFAULT 20, "p_offset" integer DEFAULT 0) RETURNS TABLE("video_id" "uuid", "user_id" "uuid", "username" character varying, "display_name" character varying, "avatar_url" "text", "verified" boolean, "is_vip" boolean, "video_url" "text", "thumbnail_url" "text", "caption" "text", "visibility" "text", "views_count" integer, "likes_count" integer, "comments_count" integer, "shares_count" integer, "created_at" timestamp with time zone, "location_name" "text", "user_has_liked" boolean, "user_has_saved" boolean, "is_following" boolean, "latest_comments" "jsonb", "liked_by_friends" "jsonb", "engagement_score" numeric, "trending_score" numeric, "post_type" "text", "duration" integer, "hashtags" "text"[])
+CREATE OR REPLACE FUNCTION "public"."get_wolfpack_feed_with_details"("p_user_id" "uuid" DEFAULT NULL::"uuid", "p_feed_type" "text" DEFAULT 'for_you'::"text", "p_location" "text" DEFAULT NULL::"text", "p_limit" integer DEFAULT 20, "p_offset" integer DEFAULT 0) RETURNS TABLE("video_id" "uuid", "user_id" "uuid", "username" character varying, "display_name" character varying, "avatar_url" "text", "verified" boolean, "is_vip" boolean, "video_url" "text", "thumbnail_url" "text", "caption" "text", "visibility" "text", "views_count" integer, "likes_count" integer, "wolfpack_comments_count" integer, "shares_count" integer, "created_at" timestamp with time zone, "location_name" "text", "user_has_liked" boolean, "user_has_saved" boolean, "is_following" boolean, "latest_wolfpack_comments" "jsonb", "liked_by_friends" "jsonb", "engagement_score" numeric, "trending_score" numeric, "post_type" "text", "duration" integer, "hashtags" "text"[])
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
     AS $$
@@ -18503,7 +18503,7 @@ BEGIN
     FROM wolfpack_follows wf
     WHERE wf.follower_id = p_user_id
   ),
-  latest_comments_cte AS (
+  latest_wolfpack_comments_cte AS (
     SELECT 
       wc.video_id,
       jsonb_agg(
@@ -18515,7 +18515,7 @@ BEGIN
           'comment', wc.content,
           'created_at', wc.created_at
         ) ORDER BY wc.created_at DESC
-      ) FILTER (WHERE row_num <= 3) as comments
+      ) FILTER (WHERE row_num <= 3) as wolfpack_comments
     FROM (
       SELECT 
         wolfpack_comments.*,
@@ -18557,19 +18557,19 @@ BEGIN
     v.visibility,
     COALESCE(v.views_count, 0) as views_count,
     COALESCE(v.likes_count, 0) as likes_count,
-    COALESCE(v.comments_count, 0) as comments_count,
+    COALESCE(v.wolfpack_comments_count, 0) as wolfpack_comments_count,
     COALESCE(v.share_count, 0) as shares_count,
     v.created_at,
     v.location_tag as location_name,
     COALESCE(ui.liked, false) as user_has_liked,
     COALESCE(us.saved, false) as user_has_saved,
     COALESCE(uf.following, false) as is_following,
-    COALESCE(lc.comments, '[]'::jsonb) as latest_comments,
+    COALESCE(lc.wolfpack_comments, '[]'::jsonb) as latest_wolfpack_comments,
     COALESCE(fl.liked_by_friends, '[]'::jsonb) as liked_by_friends,
     -- Engagement score calculation
     (COALESCE(v.views_count, 0) * 1.0 + 
      COALESCE(v.likes_count, 0) * 2.0 + 
-     COALESCE(v.comments_count, 0) * 3.0 + 
+     COALESCE(v.wolfpack_comments_count, 0) * 3.0 + 
      COALESCE(v.share_count, 0) * 4.0 + 
      CASE WHEN v.created_at > NOW() - INTERVAL '1 day' THEN 50 ELSE 0 END +
      CASE WHEN uf.following THEN 20 ELSE 0 END)::NUMERIC as engagement_score,
@@ -18582,7 +18582,7 @@ BEGIN
   LEFT JOIN user_interactions ui ON v.id = ui.video_id
   LEFT JOIN user_saves us ON v.id = us.video_id
   LEFT JOIN user_follows uf ON v.user_id = uf.following_id
-  LEFT JOIN latest_comments_cte lc ON lc.video_id = v.id
+  LEFT JOIN latest_wolfpack_comments_cte lc ON lc.video_id = v.id
   LEFT JOIN friends_likes_cte fl ON fl.video_id = v.id
   WHERE v.is_active = true
     AND v.visibility = 'public'
@@ -18895,13 +18895,13 @@ $$;
 ALTER FUNCTION "public"."get_wolfpack_metrics"() OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."get_wolfpack_posts_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer DEFAULT 3) RETURNS TABLE("video_id" "uuid", "comments" "jsonb")
+CREATE OR REPLACE FUNCTION "public"."get_wolfpack_posts_wolfpack_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer DEFAULT 3) RETURNS TABLE("video_id" "uuid", "wolfpack_comments" "jsonb")
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'pg_catalog'
     AS $$
 BEGIN
   RETURN QUERY
-  WITH ranked_comments AS (
+  WITH ranked_wolfpack_comments AS (
     SELECT 
       wc.video_id,
       wc.id,
@@ -18912,7 +18912,7 @@ BEGIN
       u.display_name,
       u.avatar_url,
       ROW_NUMBER() OVER (PARTITION BY wc.video_id ORDER BY wc.created_at DESC) as rn
-    FROM wolfpack_comments wc
+    FROM wolfpack_commentswc
     JOIN users u ON u.id = wc.user_id
     WHERE wc.video_id = ANY(p_video_ids)
   )
@@ -18928,22 +18928,22 @@ BEGIN
         'comment', comment,
         'created_at', created_at
       ) ORDER BY created_at DESC
-    ) as comments
-  FROM ranked_comments
+    ) as wolfpack_comments
+  FROM ranked_wolfpack_comments
   WHERE rn <= p_limit_per_post
   GROUP BY video_id;
 END;
 $$;
 
 
-ALTER FUNCTION "public"."get_wolfpack_posts_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) OWNER TO "postgres";
+ALTER FUNCTION "public"."get_wolfpack_posts_wolfpack_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) OWNER TO "postgres";
 
 
-COMMENT ON FUNCTION "public"."get_wolfpack_posts_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) IS 'Batch function to get latest comments for multiple posts';
+COMMENT ON FUNCTION "public"."get_wolfpack_posts_wolfpack_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) IS 'Batch function to get latest wolfpack_comments for multiple posts';
 
 
 
-CREATE OR REPLACE FUNCTION "public"."get_wolfpack_posts_interactions"("p_user_id" "uuid", "p_video_ids" "uuid"[]) RETURNS TABLE("video_id" "uuid", "user_has_liked" boolean, "user_has_saved" boolean, "total_likes" integer, "total_comments" integer, "is_following_author" boolean)
+CREATE OR REPLACE FUNCTION "public"."get_wolfpack_posts_interactions"("p_user_id" "uuid", "p_video_ids" "uuid"[]) RETURNS TABLE("video_id" "uuid", "user_has_liked" boolean, "user_has_saved" boolean, "total_likes" integer, "total_wolfpack_comments" integer, "is_following_author" boolean)
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'pg_catalog'
     AS $$
@@ -18954,11 +18954,11 @@ BEGIN
     EXISTS(SELECT 1 FROM wolfpack_post_likes wpl WHERE wpl.video_id = p.id AND wpl.user_id = p_user_id) as user_has_liked,
     EXISTS(SELECT 1 FROM wolfpack_saved_posts wsp WHERE wsp.video_id = p.id AND wsp.user_id = p_user_id) as user_has_saved,
     COUNT(DISTINCT wpl2.id)::INTEGER as total_likes,
-    COUNT(DISTINCT wc.id)::INTEGER as total_comments,
+    COUNT(DISTINCT wc.id)::INTEGER as total_wolfpack_comments,
     EXISTS(SELECT 1 FROM wolfpack_follows wf WHERE wf.follower_id = p_user_id AND wf.following_id = p.user_id) as is_following_author
   FROM wolfpack_posts p
   LEFT JOIN wolfpack_post_likes wpl2 ON wpl2.video_id = p.id
-  LEFT JOIN wolfpack_comments wc ON wc.video_id = p.id
+  LEFT JOIN wolfpack_commentswc ON wc.video_id = p.id
   WHERE p.id = ANY(p_video_ids)
   GROUP BY p.id, p.user_id;
 END;
@@ -19826,7 +19826,7 @@ CREATE OR REPLACE FUNCTION "public"."increment_comment_count"() RETURNS "trigger
     AS $$
 BEGIN
     UPDATE wolfpack_videos 
-    SET comments_count = COALESCE(comments_count, 0) + 1
+    SET wolfpack_comments_count = COALESCE(wolfpack_comments_count, 0) + 1
     WHERE id = NEW.video_id;
     RETURN NEW;
 END;
@@ -22538,7 +22538,7 @@ BEGIN
     
     UPDATE wolf_private_messages 
     SET is_read = true, read_at = NOW()
-    WHERE to_user_id = v_user_id 
+    WHERE recipient_id = v_user_id 
     AND from_user_id = p_from_user_id
     AND is_read = false;
     
@@ -22564,7 +22564,7 @@ DECLARE
 BEGIN
     UPDATE wolf_private_messages
     SET is_read = true, read_at = NOW()
-    WHERE to_user_id = p_user_id 
+    WHERE recipient_id = p_user_id 
     AND from_user_id = p_from_user_id 
     AND is_read = false;
     
@@ -24356,7 +24356,7 @@ BEGIN
         jsonb_build_object(
             'views', 0,
             'likes', 0,
-            'comments', 0
+            'wolfpack_comments', 0
         ),
         v_job.metadata
     );
@@ -26922,7 +26922,7 @@ $$;
 ALTER FUNCTION "public"."send_dj_broadcast_with_questions"("p_dj_id" "uuid", "p_location_id" "uuid", "p_title" "text", "p_message" "text", "p_broadcast_type" "text", "p_questions" "jsonb", "p_duration_seconds" integer) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -26941,14 +26941,14 @@ BEGIN
   FROM wolf_profiles WHERE user_id = p_from_user_id;
   
   SELECT gender, display_name INTO v_to_gender, v_to_name
-  FROM wolf_profiles WHERE user_id = p_to_user_id;
+  FROM wolf_profiles WHERE user_id = p_recipient_id;
 
   -- Check if both users are in wolf pack
   IF NOT is_user_in_wolf_pack(p_from_user_id, p_location_id) THEN
     RAISE EXCEPTION 'Sender must be in wolf pack';
   END IF;
   
-  IF NOT is_user_in_wolf_pack(p_to_user_id, p_location_id) THEN
+  IF NOT is_user_in_wolf_pack(p_recipient_id, p_location_id) THEN
     RAISE EXCEPTION 'Recipient must be in wolf pack';
   END IF;
 
@@ -26965,13 +26965,13 @@ BEGIN
   -- Create the interaction
   INSERT INTO wolf_pack_interactions (
     from_user_id, 
-    to_user_id, 
+    recipient_id, 
     interaction_type,
     is_flirt,
     flirt_type
   ) VALUES (
     p_from_user_id, 
-    p_to_user_id, 
+    p_recipient_id, 
     'flirt',
     true,
     p_flirt_type
@@ -26994,12 +26994,12 @@ BEGIN
   -- Send private message
   INSERT INTO wolf_private_messages (
     from_user_id,
-    to_user_id,
+    recipient_id,
     message,
     is_flirt_message
   ) VALUES (
     p_from_user_id,
-    p_to_user_id,
+    p_recipient_id,
     v_message,
     true
   );
@@ -27012,7 +27012,7 @@ BEGIN
     data, 
     notification_type
   ) VALUES (
-    p_to_user_id,
+    p_recipient_id,
     'Wolf Pack Flirt ' || v_emoji,
     v_message,
     jsonb_build_object(
@@ -27028,7 +27028,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."send_food_ready_notification"("p_user_id" "uuid", "p_order_details" "text", "p_table_number" integer DEFAULT NULL::integer) RETURNS "json"
@@ -27428,7 +27428,7 @@ $$;
 ALTER FUNCTION "public"."send_pack_message"("p_pack_id" "uuid", "p_content" "text", "p_message_type" character varying, "p_media_url" "text", "p_reply_to_id" "uuid") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text" DEFAULT NULL::"text") RETURNS "json"
+CREATE OR REPLACE FUNCTION "public"."send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text" DEFAULT NULL::"text") RETURNS "json"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -27452,7 +27452,7 @@ BEGIN
     -- Check if recipient exists and is active
     SELECT EXISTS(
         SELECT 1 FROM users 
-        WHERE id = p_to_user_id 
+        WHERE id = p_recipient_id 
         AND status = 'active' 
         AND deleted_at IS NULL
     ) INTO v_to_user_exists;
@@ -27468,7 +27468,7 @@ BEGIN
     INSERT INTO wolf_private_messages (
         id,
         from_user_id,
-        to_user_id,
+        recipient_id,
         message,
         image_url,
         sender_id,
@@ -27478,11 +27478,11 @@ BEGIN
     ) VALUES (
         gen_random_uuid(),
         v_from_user_id,
-        p_to_user_id,
+        p_recipient_id,
         p_message,
         p_image_url,
         v_from_user_id,
-        p_to_user_id,
+        p_recipient_id,
         false,
         NOW()
     ) RETURNING id INTO v_message_id;
@@ -27494,7 +27494,7 @@ BEGIN
             v_from_user_id, 
             'sent_private_message',
             json_build_object(
-                'to_user_id', p_to_user_id,
+                'recipient_id', p_recipient_id,
                 'message_id', v_message_id
             )
         );
@@ -27515,7 +27515,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."send_private_message"("p_receiver_id" "uuid", "p_message" "text", "p_image_url" "text" DEFAULT NULL::"text", "p_is_flirt_message" boolean DEFAULT false) RETURNS "jsonb"
@@ -27598,7 +27598,7 @@ $$;
 ALTER FUNCTION "public"."send_private_message"("p_receiver_id" "uuid", "p_message" "text", "p_image_url" "text", "p_is_flirt_message" boolean) OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text" DEFAULT NULL::"text") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text" DEFAULT NULL::"text") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -27606,12 +27606,12 @@ DECLARE
     v_message_id UUID;
 BEGIN
     -- Don't allow messaging yourself
-    IF p_from_user_id = p_to_user_id THEN
+    IF p_from_user_id = p_recipient_id THEN
         RAISE EXCEPTION 'Cannot send message to yourself';
     END IF;
     
-    INSERT INTO wolf_private_messages (from_user_id, to_user_id, message, image_url)
-    VALUES (p_from_user_id, p_to_user_id, p_message, p_image_url)
+    INSERT INTO wolf_private_messages (from_user_id, recipient_id, message, image_url)
+    VALUES (p_from_user_id, p_recipient_id, p_message, p_image_url)
     RETURNING id INTO v_message_id;
     
     RETURN v_message_id;
@@ -27619,10 +27619,10 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."send_private_message_simple"("p_to_user_id" "uuid", "p_message" "text") RETURNS "json"
+CREATE OR REPLACE FUNCTION "public"."send_private_message_simple"("p_recipient_id" "uuid", "p_message" "text") RETURNS "json"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -27640,8 +27640,8 @@ BEGIN
     END IF;
     
     -- Insert the message
-    INSERT INTO wolf_private_messages (from_user_id, to_user_id, message)
-    VALUES (v_from_user_id, p_to_user_id, p_message)
+    INSERT INTO wolf_private_messages (from_user_id, recipient_id, message)
+    VALUES (v_from_user_id, p_recipient_id, p_message)
     RETURNING id INTO v_message_id;
     
     RETURN json_build_object(
@@ -27659,7 +27659,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."send_private_message_simple"("p_to_user_id" "uuid", "p_message" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."send_private_message_simple"("p_recipient_id" "uuid", "p_message" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."send_wolf_chat_message"("p_user_id" "uuid", "p_location_id" "uuid", "p_message" "text", "p_image_id" "uuid" DEFAULT NULL::"uuid", "p_chat_type" "text" DEFAULT 'pack'::"text") RETURNS "uuid"
@@ -27707,7 +27707,7 @@ $$;
 ALTER FUNCTION "public"."send_wolf_chat_message"("p_user_id" "uuid", "p_location_id" "uuid", "p_message" "text", "p_image_id" "uuid", "p_chat_type" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") RETURNS "uuid"
+CREATE OR REPLACE FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") RETURNS "uuid"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'pg_catalog', 'public'
     AS $$
@@ -27719,7 +27719,7 @@ BEGIN
     RAISE EXCEPTION 'Sender is not in the wolf pack at this location';
   END IF;
   
-  IF NOT is_user_in_wolf_pack(p_to_user_id, p_location_id) THEN
+  IF NOT is_user_in_wolf_pack(p_recipient_id, p_location_id) THEN
     RAISE EXCEPTION 'Recipient is not in the wolf pack at this location';
   END IF;
 
@@ -27730,17 +27730,17 @@ BEGIN
 
   -- Create interaction
   INSERT INTO wolf_pack_interactions (
-    from_user_id, to_user_id, interaction_type
+    from_user_id, recipient_id, interaction_type
   ) VALUES (
-    p_from_user_id, p_to_user_id, p_interaction_type
+    p_from_user_id, p_recipient_id, p_interaction_type
   )
   RETURNING id INTO v_interaction_id;
 
   -- Update wolf connections
   INSERT INTO wolf_connections (user_one_id, user_two_id, connection_type, interaction_count)
   VALUES (
-    LEAST(p_from_user_id, p_to_user_id),
-    GREATEST(p_from_user_id, p_to_user_id),
+    LEAST(p_from_user_id, p_recipient_id),
+    GREATEST(p_from_user_id, p_recipient_id),
     'wolf_pack_interaction',
     1
   )
@@ -27754,7 +27754,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") OWNER TO "postgres";
+ALTER FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."send_wolf_pack_welcome_notification"("p_user_id" "uuid", "p_location_name" "text") RETURNS "void"
@@ -28145,7 +28145,7 @@ BEGIN
     UNION ALL
     SELECT 'Saved Table'::TEXT, 'wolfpack_saved_posts - Use video_id column'::TEXT
     UNION ALL
-    SELECT 'Comments Table'::TEXT, 'wolfpack_comments - Use video_id column'::TEXT
+    SELECT 'wolfpack_comments Table'::TEXT, 'wolfpack_comments- Use video_id column'::TEXT
     UNION ALL
     SELECT 'API Functions'::TEXT, 'toggle_video_like(), get_video_with_status(), get_video_feed()'::TEXT
     UNION ALL
@@ -28167,9 +28167,9 @@ BEGIN
     UNION ALL
     SELECT 'wolfpack_post_likes'::TEXT, 'Video likes'::TEXT, 'video_id'::TEXT, 'ACTIVE'::TEXT
     UNION ALL
-    SELECT 'wolfpack_comments'::TEXT, 'Video comments'::TEXT, 'video_id'::TEXT, 'ACTIVE'::TEXT
+    SELECT 'wolfpack_comments'::TEXT, 'Video wolfpack_comments'::TEXT, 'video_id'::TEXT, 'ACTIVE'::TEXT
     UNION ALL
-    SELECT 'wolfpack_saved_posts'::TEXT, 'Saved videos'::TEXT, 'video_id'::TEXT, 'ACTIVE'::TEXT
+    SELECT 'wolfpack_saved_posts'::TEXT, 'Saved wolfpack_videos'::TEXT, 'video_id'::TEXT, 'ACTIVE'::TEXT
     UNION ALL
     SELECT 'wolfpack_post_hashtags'::TEXT, 'Video hashtags'::TEXT, 'video_id'::TEXT, 'ACTIVE'::TEXT
     UNION ALL
@@ -28534,7 +28534,7 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'You do not own this video');
   END IF;
   
-  UPDATE public.videos 
+  UPDATE public.wolfpack_videos 
   SET deleted_at = now() 
   WHERE id = video_id;
   
@@ -30412,11 +30412,11 @@ BEGIN
   IF TG_TABLE_NAME = 'wolfpack_comments' THEN
     IF TG_OP = 'INSERT' THEN
       UPDATE wolfpack_videos 
-      SET comments_count = COALESCE(comments_count, 0) + 1 
+      SET wolfpack_comments_count = COALESCE(wolfpack_comments_count, 0) + 1 
       WHERE id = NEW.video_id;
     ELSIF TG_OP = 'DELETE' THEN
       UPDATE wolfpack_videos 
-      SET comments_count = GREATEST(0, COALESCE(comments_count, 0) - 1) 
+      SET wolfpack_comments_count = GREATEST(0, COALESCE(wolfpack_comments_count, 0) - 1) 
       WHERE id = OLD.video_id;
     END IF;
   ELSIF TG_TABLE_NAME = 'wolfpack_post_likes' THEN
@@ -30966,7 +30966,7 @@ BEGIN
     v_thumbnail_path := generate_unique_filename(p_thumbnail_filename, p_user_id);
     
     -- Generate public URLs
-    v_video_url := get_storage_public_url('wolfpack-videos', v_video_path);
+    v_video_url := get_storage_public_url('wolfpack-wolfpack_videos', v_video_path);
     v_thumbnail_url := get_storage_public_url('wolfpack-thumbnails', v_thumbnail_path);
     
     -- Insert video record
@@ -32072,7 +32072,7 @@ BEGIN
   SELECT max_file_size_mb * 1024 * 1024, allowed_mime_types
   INTO v_max_size, v_allowed_types
   FROM wolfpack_storage_config
-  WHERE bucket_type = 'videos';
+  WHERE bucket_type = 'wolfpack_videos';
   
   -- Check file size
   IF p_file_size > v_max_size THEN
@@ -32109,7 +32109,7 @@ BEGIN
     v_timestamp := EXTRACT(EPOCH FROM NOW())::BIGINT;
     
     -- Generate path
-    v_path := p_user_id::TEXT || '/videos/' || v_timestamp::TEXT || '-video.mp4';
+    v_path := p_user_id::TEXT || '/wolfpack_videos/' || v_timestamp::TEXT || '-video.mp4';
     
     -- Simple size check (100MB max)
     IF p_file_size > 104857600 THEN
@@ -32684,7 +32684,7 @@ $$;
 ALTER FUNCTION "public"."which_table_to_use"("p_feature" "text") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text" DEFAULT NULL::"text", "p_hashtags" "text"[] DEFAULT '{}'::"text"[], "p_is_private" boolean DEFAULT false, "p_allows_comments" boolean DEFAULT true, "p_allows_duets" boolean DEFAULT true, "p_location_id" "uuid" DEFAULT NULL::"uuid") RETURNS "json"
+CREATE OR REPLACE FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text" DEFAULT NULL::"text", "p_hashtags" "text"[] DEFAULT '{}'::"text"[], "p_is_private" boolean DEFAULT false, "p_allows_wolfpack_comments" boolean DEFAULT true, "p_allows_duets" boolean DEFAULT true, "p_location_id" "uuid" DEFAULT NULL::"uuid") RETURNS "json"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'pg_temp'
     AS $$
@@ -32723,7 +32723,7 @@ BEGIN
         caption,
         hashtags,
         is_private,
-        allows_comments,
+        allows_wolfpack_comments,
         allows_duets,
         wolfpack_location_id,
         upload_id,
@@ -32736,7 +32736,7 @@ BEGIN
         p_caption,
         p_hashtags,
         p_is_private,
-        p_allows_comments,
+        p_allows_wolfpack_comments,
         p_allows_duets,
         p_location_id,
         p_upload_id,
@@ -32755,7 +32755,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") OWNER TO "postgres";
+ALTER FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_wolfpack_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."wolfpack_daily_reset"() RETURNS "void"
@@ -32861,7 +32861,7 @@ BEGIN
         RAISE EXCEPTION 'Not authenticated';
     END IF;
 
-    -- Validate file size (max 500MB for videos)
+    -- Validate file size (max 500MB for wolfpack_videos)
     IF p_file_size > 524288000 THEN
         RAISE EXCEPTION 'File too large. Maximum size is 500MB';
     END IF;
@@ -32872,7 +32872,7 @@ BEGIN
     END IF;
 
     -- Generate storage path
-    v_storage_path := 'videos/' || v_user_id || '/' || gen_random_uuid() || '/' || p_file_name;
+    v_storage_path := 'wolfpack_videos/' || v_user_id || '/' || gen_random_uuid() || '/' || p_file_name;
 
     -- Create upload record
     INSERT INTO wolfpack_video_uploads (
@@ -32885,7 +32885,7 @@ BEGIN
     RETURN json_build_object(
         'upload_id', v_upload_id,
         'storage_path', v_storage_path,
-        'upload_url', 'https://your-supabase-url.supabase.co/storage/v1/object/wolfpack-videos/' || v_storage_path
+        'upload_url', 'https://your-supabase-url.supabase.co/storage/v1/object/wolfpack-wolfpack_videos/' || v_storage_path
     );
 END;
 $$;
@@ -32930,14 +32930,14 @@ BEGIN
     INSERT INTO wolfpack_shares (
         video_id,
         shared_by_user_id,
-        shared_to_user_id,
+        shared_recipient_id,
         share_type,
         message,
         platform
     ) VALUES (
         NEW.video_id,
         NEW.shared_by_user_id,
-        NEW.shared_to_user_id,
+        NEW.shared_recipient_id,
         NEW.share_type,
         NEW.message,
         NEW.platform
@@ -34561,7 +34561,7 @@ CREATE TABLE IF NOT EXISTS "public"."wolfpack_comment_reactions" (
 ALTER TABLE "public"."wolfpack_comment_reactions" OWNER TO "postgres";
 
 
-COMMENT ON TABLE "public"."wolfpack_comment_reactions" IS 'Stores user reactions (likes, hearts, etc) on comments. Each user can have one reaction per comment.';
+COMMENT ON TABLE "public"."wolfpack_comment_reactions" IS 'Stores user reactions (likes, hearts, etc) on wolfpack_comments. Each user can have one reaction per comment.';
 
 
 
@@ -34619,7 +34619,7 @@ CREATE TABLE IF NOT EXISTS "public"."wolfpack_videos" (
     "thumbnail_url" "text",
     "caption" "text",
     "likes_count" integer DEFAULT 0,
-    "comments_count" integer DEFAULT 0,
+    "wolfpack_comments_count" integer DEFAULT 0,
     "views_count" integer DEFAULT 0,
     "is_active" boolean DEFAULT true,
     "created_at" timestamp with time zone DEFAULT "now"(),
@@ -34645,7 +34645,7 @@ CREATE TABLE IF NOT EXISTS "public"."wolfpack_videos" (
     "location_lat" numeric,
     "location_lng" numeric,
     "visibility" "text" DEFAULT 'public'::"text",
-    "allow_comments" boolean DEFAULT true,
+    "allow_wolfpack_comments" boolean DEFAULT true,
     "allow_duets" boolean DEFAULT true,
     "allow_stitches" boolean DEFAULT true,
     "is_ad" boolean DEFAULT false,
@@ -34671,7 +34671,7 @@ WITH ("autovacuum_vacuum_scale_factor"='0.1', "autovacuum_analyze_scale_factor"=
 ALTER TABLE "public"."wolfpack_videos" OWNER TO "postgres";
 
 
-COMMENT ON TABLE "public"."wolfpack_videos" IS 'Main content table for Wolfpack TikTok-style app. Supports videos, images, and mixed content with location verification.';
+COMMENT ON TABLE "public"."wolfpack_videos" IS 'Main content table for Wolfpack TikTok-style app. Supports wolfpack_videos, images, and mixed content with location verification.';
 
 
 
@@ -34683,14 +34683,14 @@ COMMENT ON COLUMN "public"."wolfpack_videos"."thumbnail_url" IS 'URL of the thum
 
 
 
-CREATE OR REPLACE VIEW "public"."my_videos" WITH ("security_invoker"='on') AS
+CREATE OR REPLACE VIEW "public"."my_wolfpack_videos" WITH ("security_invoker"='on') AS
  SELECT "v"."id",
     "v"."user_id",
     "v"."video_url",
     "v"."thumbnail_url",
     "v"."caption",
     "v"."likes_count",
-    "v"."comments_count",
+    "v"."wolfpack_comments_count",
     "v"."views_count",
     "v"."is_active",
     "v"."created_at",
@@ -34716,7 +34716,7 @@ CREATE OR REPLACE VIEW "public"."my_videos" WITH ("security_invoker"='on') AS
     "v"."location_lat",
     "v"."location_lng",
     "v"."visibility",
-    "v"."allow_comments",
+    "v"."allow_wolfpack_comments",
     "v"."allow_duets",
     "v"."allow_stitches",
     "v"."is_ad",
@@ -34739,7 +34739,7 @@ CREATE OR REPLACE VIEW "public"."my_videos" WITH ("security_invoker"='on') AS
   WHERE ("u"."auth_id" = "auth"."uid"());
 
 
-ALTER TABLE "public"."my_videos" OWNER TO "postgres";
+ALTER TABLE "public"."my_wolfpack_videos" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."notification_topics" (
@@ -35089,7 +35089,7 @@ CREATE TABLE IF NOT EXISTS "public"."user_storage_quotas" (
     "user_id" "uuid" NOT NULL,
     "max_storage_bytes" bigint DEFAULT '5368709120'::bigint,
     "used_storage_bytes" bigint DEFAULT 0,
-    "max_videos" integer DEFAULT 100,
+    "max_wolfpack_videos" integer DEFAULT 100,
     "video_count" integer DEFAULT 0,
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"()
@@ -35105,7 +35105,7 @@ CREATE OR REPLACE VIEW "public"."user_storage_stats" WITH ("security_invoker"='o
     COALESCE("q"."used_storage_bytes", (0)::bigint) AS "used_bytes",
     COALESCE("q"."max_storage_bytes", '5368709120'::bigint) AS "max_bytes",
     COALESCE("q"."video_count", 0) AS "video_count",
-    COALESCE("q"."max_videos", 100) AS "max_videos",
+    COALESCE("q"."max_wolfpack_videos", 100) AS "max_wolfpack_videos",
     "round"((((COALESCE("q"."used_storage_bytes", (0)::bigint))::numeric / (COALESCE("q"."max_storage_bytes", '5368709120'::bigint))::numeric) * (100)::numeric), 2) AS "usage_percentage"
    FROM ("public"."users" "u"
      LEFT JOIN "public"."user_storage_quotas" "q" ON (("u"."id" = "q"."user_id")));
@@ -35492,7 +35492,7 @@ CREATE TABLE IF NOT EXISTS "public"."wolfpack_post_hashtags" (
 ALTER TABLE "public"."wolfpack_post_hashtags" OWNER TO "postgres";
 
 
-COMMENT ON TABLE "public"."wolfpack_post_hashtags" IS 'Hashtags for videos. References wolfpack_videos table via video_id column.';
+COMMENT ON TABLE "public"."wolfpack_post_hashtags" IS 'Hashtags for wolfpack_videos. References wolfpack_videos table via video_id column.';
 
 
 
@@ -35531,7 +35531,7 @@ CREATE OR REPLACE VIEW "public"."wolfpack_posts" WITH ("security_invoker"='true'
     "wolfpack_videos"."created_at",
     "wolfpack_videos"."updated_at",
     COALESCE("wolfpack_videos"."likes_count", "wolfpack_videos"."like_count", 0) AS "likes_count",
-    COALESCE("wolfpack_videos"."comments_count", "wolfpack_videos"."comment_count", 0) AS "comments_count",
+    COALESCE("wolfpack_videos"."wolfpack_comments_count", "wolfpack_videos"."comment_count", 0) AS "wolfpack_comments_count",
     COALESCE("wolfpack_videos"."share_count", 0) AS "shares_count",
     COALESCE("wolfpack_videos"."views_count", "wolfpack_videos"."view_count", 0) AS "views_count",
     COALESCE("wolfpack_videos"."is_featured", false) AS "is_featured",
@@ -35543,7 +35543,7 @@ CREATE OR REPLACE VIEW "public"."wolfpack_posts" WITH ("security_invoker"='true'
 ALTER TABLE "public"."wolfpack_posts" OWNER TO "postgres";
 
 
-COMMENT ON VIEW "public"."wolfpack_posts" IS 'Compatibility view for wolfpack posts/videos - SECURITY INVOKER enabled for security';
+COMMENT ON VIEW "public"."wolfpack_posts" IS 'Compatibility view for wolfpack posts/wolfpack_videos - SECURITY INVOKER enabled for security';
 
 
 
@@ -35558,14 +35558,14 @@ CREATE TABLE IF NOT EXISTS "public"."wolfpack_saved_posts" (
 ALTER TABLE "public"."wolfpack_saved_posts" OWNER TO "postgres";
 
 
-COMMENT ON TABLE "public"."wolfpack_saved_posts" IS 'Saved videos/posts by users. References wolfpack_videos table via video_id column.';
+COMMENT ON TABLE "public"."wolfpack_saved_posts" IS 'Saved wolfpack_videos/posts by users. References wolfpack_videos table via video_id column.';
 
 
 
 CREATE TABLE IF NOT EXISTS "public"."wolfpack_shares" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "shared_by_user_id" "uuid" NOT NULL,
-    "shared_to_user_id" "uuid",
+    "shared_recipient_id" "uuid",
     "share_type" character varying(50) NOT NULL,
     "message" "text",
     "platform" character varying(50),
@@ -35617,7 +35617,7 @@ CREATE TABLE IF NOT EXISTS "public"."wolfpack_user_settings" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "user_id" "uuid" NOT NULL,
     "notify_new_posts" boolean DEFAULT true,
-    "notify_comments" boolean DEFAULT true,
+    "notify_wolfpack_comments" boolean DEFAULT true,
     "notify_mentions" boolean DEFAULT true,
     "notify_events" boolean DEFAULT true,
     "notify_safety_alerts" boolean DEFAULT true,
@@ -35653,7 +35653,7 @@ CREATE TABLE IF NOT EXISTS "public"."wolfpack_user_settings" (
 ALTER TABLE "public"."wolfpack_user_settings" OWNER TO "postgres";
 
 
-CREATE OR REPLACE VIEW "public"."wolfpack_video_likes" WITH ("security_invoker"='on') AS
+CREATE OR REPLACE VIEW "public"."wolfpack_wolfpack_video_likes" WITH ("security_invoker"='on') AS
  SELECT "l"."id",
     "l"."video_id",
     "l"."user_id",
@@ -35664,7 +35664,7 @@ CREATE OR REPLACE VIEW "public"."wolfpack_video_likes" WITH ("security_invoker"=
      JOIN "public"."users" "u" ON (("l"."user_id" = "u"."id")));
 
 
-ALTER TABLE "public"."wolfpack_video_likes" OWNER TO "postgres";
+ALTER TABLE "public"."wolfpack_wolfpack_video_likes" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."wolfpack_video_processing_queue" (
@@ -35686,7 +35686,7 @@ CREATE OR REPLACE VIEW "public"."wolfpack_video_shares" WITH ("security_invoker"
  SELECT "wolfpack_shares"."id",
     "wolfpack_shares"."video_id",
     "wolfpack_shares"."shared_by_user_id",
-    "wolfpack_shares"."shared_to_user_id",
+    "wolfpack_shares"."shared_recipient_id",
     "wolfpack_shares"."share_type",
     "wolfpack_shares"."message",
     "wolfpack_shares"."platform",
@@ -36335,12 +36335,12 @@ ALTER TABLE ONLY "public"."wolfpack_user_settings"
 
 
 ALTER TABLE ONLY "public"."wolfpack_post_likes"
-    ADD CONSTRAINT "wolfpack_video_likes_pkey" PRIMARY KEY ("id");
+    ADD CONSTRAINT "wolfpack_wolfpack_video_likes_pkey" PRIMARY KEY ("id");
 
 
 
 ALTER TABLE ONLY "public"."wolfpack_post_likes"
-    ADD CONSTRAINT "wolfpack_video_likes_video_id_user_id_key" UNIQUE ("video_id", "user_id");
+    ADD CONSTRAINT "wolfpack_wolfpack_video_likes_video_id_user_id_key" UNIQUE ("video_id", "user_id");
 
 
 
@@ -36777,7 +36777,7 @@ CREATE INDEX "idx_wolfpack_shares_shared_by_user_id" ON "public"."wolfpack_share
 
 
 
-CREATE INDEX "idx_wolfpack_shares_shared_to_user_id" ON "public"."wolfpack_shares" USING "btree" ("shared_to_user_id");
+CREATE INDEX "idx_wolfpack_shares_shared_recipient_id" ON "public"."wolfpack_shares" USING "btree" ("shared_recipient_id");
 
 
 
@@ -37022,7 +37022,7 @@ CREATE OR REPLACE TRIGGER "update_order_items_timestamp" BEFORE UPDATE ON "publi
 
 
 
-CREATE OR REPLACE TRIGGER "update_post_comments_count" AFTER INSERT OR DELETE ON "public"."wolfpack_comments" FOR EACH ROW EXECUTE FUNCTION "public"."update_post_counters"();
+CREATE OR REPLACE TRIGGER "update_post_wolfpack_comments_count" AFTER INSERT OR DELETE ON "public"."wolfpack_comments" FOR EACH ROW EXECUTE FUNCTION "public"."update_post_counters"();
 
 
 
@@ -37481,7 +37481,7 @@ ALTER TABLE ONLY "public"."wolfpack_shares"
 
 
 ALTER TABLE ONLY "public"."wolfpack_shares"
-    ADD CONSTRAINT "wolfpack_shares_shared_to_user_id_fkey" FOREIGN KEY ("shared_to_user_id") REFERENCES "public"."users"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "wolfpack_shares_shared_recipient_id_fkey" FOREIGN KEY ("shared_recipient_id") REFERENCES "public"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -37496,7 +37496,7 @@ ALTER TABLE ONLY "public"."wolfpack_user_settings"
 
 
 ALTER TABLE ONLY "public"."wolfpack_post_likes"
-    ADD CONSTRAINT "wolfpack_video_likes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE CASCADE;
+    ADD CONSTRAINT "wolfpack_wolfpack_video_likes_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE CASCADE;
 
 
 
@@ -37639,11 +37639,11 @@ CREATE POLICY "Admins can view system logs" ON "public"."system_logs" FOR SELECT
 
 
 
-CREATE POLICY "Anyone can view comments" ON "public"."wolfpack_comments" FOR SELECT USING (true);
+CREATE POLICY "Anyone can view wolfpack_comments" ON "public"."wolfpack_comments" FOR SELECT USING (true);
 
 
 
-CREATE POLICY "Authenticated users can create comments" ON "public"."wolfpack_comments" FOR INSERT TO "authenticated" WITH CHECK (true);
+CREATE POLICY "Authenticated users can create wolfpack_comments" ON "public"."wolfpack_comments" FOR INSERT TO "authenticated" WITH CHECK (true);
 
 
 
@@ -37743,7 +37743,7 @@ CREATE POLICY "Users can create uploads" ON "public"."wolfpack_video_uploads" FO
 
 
 
-CREATE POLICY "Users can delete own comments" ON "public"."wolfpack_comments" FOR DELETE TO "authenticated" USING (("user_id" IN ( SELECT "users"."id"
+CREATE POLICY "Users can delete own wolfpack_comments" ON "public"."wolfpack_comments" FOR DELETE TO "authenticated" USING (("user_id" IN ( SELECT "users"."id"
    FROM "public"."users"
   WHERE ("users"."auth_id" = ( SELECT "auth"."uid"() AS "uid")))));
 
@@ -37793,7 +37793,7 @@ CREATE POLICY "Users can send messages" ON "public"."wolfpack_direct_messages" F
 
 
 
-CREATE POLICY "Users can update own comments" ON "public"."wolfpack_comments" FOR UPDATE TO "authenticated" USING (("user_id" IN ( SELECT "users"."id"
+CREATE POLICY "Users can update own wolfpack_comments" ON "public"."wolfpack_comments" FOR UPDATE TO "authenticated" USING (("user_id" IN ( SELECT "users"."id"
    FROM "public"."users"
   WHERE ("users"."auth_id" = ( SELECT "auth"."uid"() AS "uid")))));
 
@@ -38392,7 +38392,7 @@ CREATE POLICY "users_can_update_own_messages" ON "public"."wolfpack_chat_message
 
 
 
-CREATE POLICY "users_delete_own_videos" ON "public"."wolfpack_videos" FOR DELETE TO "authenticated" USING (("user_id" = "public"."get_user_id_from_auth"()));
+CREATE POLICY "users_delete_own_wolfpack_videos" ON "public"."wolfpack_videos" FOR DELETE TO "authenticated" USING (("user_id" = "public"."get_user_id_from_auth"()));
 
 
 
@@ -38400,7 +38400,7 @@ CREATE POLICY "users_select_policy" ON "public"."users" FOR SELECT USING (true);
 
 
 
-CREATE POLICY "users_update_own_videos" ON "public"."wolfpack_videos" FOR UPDATE TO "authenticated" USING (("user_id" = "public"."get_user_id_from_auth"())) WITH CHECK (("user_id" = "public"."get_user_id_from_auth"()));
+CREATE POLICY "users_update_own_wolfpack_videos" ON "public"."wolfpack_videos" FOR UPDATE TO "authenticated" USING (("user_id" = "public"."get_user_id_from_auth"())) WITH CHECK (("user_id" = "public"."get_user_id_from_auth"()));
 
 
 
@@ -38513,13 +38513,13 @@ CREATE POLICY "wolfpack_interactions_unified_update" ON "public"."wolfpack_inter
 
 
 
-CREATE POLICY "wolfpack_members_create_videos" ON "public"."wolfpack_videos" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "public"."get_user_id_from_auth"()) AND (EXISTS ( SELECT 1
+CREATE POLICY "wolfpack_members_create_wolfpack_videos" ON "public"."wolfpack_videos" FOR INSERT TO "authenticated" WITH CHECK ((("user_id" = "public"."get_user_id_from_auth"()) AND (EXISTS ( SELECT 1
    FROM "public"."users"
   WHERE (("users"."id" = "wolfpack_videos"."user_id") AND ("users"."wolfpack_status" = 'active'::"text"))))));
 
 
 
-CREATE POLICY "wolfpack_members_view_comments" ON "public"."wolfpack_comments" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
+CREATE POLICY "wolfpack_members_view_wolfpack_comments" ON "public"."wolfpack_comments" FOR SELECT TO "authenticated" USING ((EXISTS ( SELECT 1
    FROM "public"."users"
   WHERE (("users"."auth_id" = "auth"."uid"()) AND ("users"."wolfpack_status" = 'active'::"text")))));
 
@@ -38531,7 +38531,7 @@ CREATE POLICY "wolfpack_members_view_likes" ON "public"."wolfpack_post_likes" FO
 
 
 
-CREATE POLICY "wolfpack_members_view_videos" ON "public"."wolfpack_videos" FOR SELECT TO "authenticated" USING ((("is_active" = true) AND (EXISTS ( SELECT 1
+CREATE POLICY "wolfpack_members_view_wolfpack_videos" ON "public"."wolfpack_videos" FOR SELECT TO "authenticated" USING ((("is_active" = true) AND (EXISTS ( SELECT 1
    FROM "public"."users" "viewer"
   WHERE (("viewer"."auth_id" = "auth"."uid"()) AND ("viewer"."wolfpack_status" = 'active'::"text") AND ((("viewer"."location")::"text" = "wolfpack_videos"."location_tag") OR ("viewer"."location" IS NULL) OR ("wolfpack_videos"."location_tag" IS NULL) OR ("wolfpack_videos"."location_tag" = 'florida_state'::"text") OR (("viewer"."location")::"text" = 'florida_state'::"text") OR ("wolfpack_videos"."location_tag" = ANY (ARRAY['florida'::"text", 'state'::"text", 'Florida State'::"text"]))))))));
 
@@ -38600,7 +38600,7 @@ ALTER TABLE "public"."wolfpack_video_uploads" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."wolfpack_videos" ENABLE ROW LEVEL SECURITY;
 
 
-CREATE POLICY "Anyone can view videos" ON "storage"."objects" FOR SELECT USING (("bucket_id" = 'videos'::"text"));
+CREATE POLICY "Anyone can view wolfpack_videos" ON "storage"."objects" FOR SELECT USING (("bucket_id" = 'wolfpack_videos'::"text"));
 
 
 
@@ -38616,7 +38616,7 @@ CREATE POLICY "Authenticated Upload Access" ON "storage"."objects" FOR INSERT WI
 
 
 
-CREATE POLICY "Authenticated users can upload to videos" ON "storage"."objects" FOR INSERT TO "authenticated" WITH CHECK ((("bucket_id" = 'videos'::"text") AND (("storage"."foldername"("name"))[1] = ("auth"."uid"())::"text")));
+CREATE POLICY "Authenticated users can upload to wolfpack_videos" ON "storage"."objects" FOR INSERT TO "authenticated" WITH CHECK ((("bucket_id" = 'wolfpack_videos'::"text") AND (("storage"."foldername"("name"))[1] = ("auth"."uid"())::"text")));
 
 
 
@@ -38636,11 +38636,11 @@ CREATE POLICY "Public View Access" ON "storage"."objects" FOR SELECT USING (("bu
 
 
 
-CREATE POLICY "Public read access for public buckets" ON "storage"."objects" FOR SELECT USING (("bucket_id" = ANY (ARRAY['videos'::"text", 'images'::"text", 'wolfpack-images'::"text"])));
+CREATE POLICY "Public read access for public buckets" ON "storage"."objects" FOR SELECT USING (("bucket_id" = ANY (ARRAY['wolfpack_videos'::"text", 'images'::"text", 'wolfpack-images'::"text"])));
 
 
 
-CREATE POLICY "Public videos are viewable by everyone" ON "storage"."objects" FOR SELECT USING (("bucket_id" = ANY (ARRAY['wolfpack-videos'::"text", 'wolfpack-thumbnails'::"text", 'wolfpack-images'::"text"])));
+CREATE POLICY "Public wolfpack_videos are viewable by everyone" ON "storage"."objects" FOR SELECT USING (("bucket_id" = ANY (ARRAY['wolfpack-wolfpack_videos'::"text", 'wolfpack-thumbnails'::"text", 'wolfpack-images'::"text"])));
 
 
 
@@ -38660,7 +38660,7 @@ CREATE POLICY "Users can delete own thumbnails" ON "storage"."objects" FOR DELET
 
 
 
-CREATE POLICY "Users can delete own videos" ON "storage"."objects" FOR DELETE USING ((("bucket_id" = 'wolfpack-videos'::"text") AND ((( SELECT "auth"."uid"() AS "uid"))::"text" = ("string_to_array"("name", '/'::"text"))[1])));
+CREATE POLICY "Users can delete own wolfpack_videos" ON "storage"."objects" FOR DELETE USING ((("bucket_id" = 'wolfpack-wolfpack_videos'::"text") AND ((( SELECT "auth"."uid"() AS "uid"))::"text" = ("string_to_array"("name", '/'::"text"))[1])));
 
 
 
@@ -38676,11 +38676,11 @@ CREATE POLICY "Users can delete their images" ON "storage"."objects" FOR DELETE 
 
 
 
-CREATE POLICY "Users can delete their videos" ON "storage"."objects" FOR DELETE TO "authenticated" USING ((("bucket_id" = 'videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
+CREATE POLICY "Users can delete their wolfpack_videos" ON "storage"."objects" FOR DELETE TO "authenticated" USING ((("bucket_id" = 'wolfpack_videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
 
 
 
-CREATE POLICY "Users can delete their wolfpack videos" ON "storage"."objects" FOR DELETE TO "authenticated" USING ((("bucket_id" = 'wolfpack-videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
+CREATE POLICY "Users can delete their wolfpack wolfpack_videos" ON "storage"."objects" FOR DELETE TO "authenticated" USING ((("bucket_id" = 'wolfpack-wolfpack_videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
 
 
 
@@ -38692,7 +38692,7 @@ CREATE POLICY "Users can update own thumbnails" ON "storage"."objects" FOR UPDAT
 
 
 
-CREATE POLICY "Users can update own videos" ON "storage"."objects" FOR UPDATE USING ((("bucket_id" = 'wolfpack-videos'::"text") AND ((( SELECT "auth"."uid"() AS "uid"))::"text" = ("string_to_array"("name", '/'::"text"))[1])));
+CREATE POLICY "Users can update own wolfpack_videos" ON "storage"."objects" FOR UPDATE USING ((("bucket_id" = 'wolfpack-wolfpack_videos'::"text") AND ((( SELECT "auth"."uid"() AS "uid"))::"text" = ("string_to_array"("name", '/'::"text"))[1])));
 
 
 
@@ -38712,11 +38712,11 @@ CREATE POLICY "Users can update their images" ON "storage"."objects" FOR UPDATE 
 
 
 
-CREATE POLICY "Users can update their videos" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
+CREATE POLICY "Users can update their wolfpack_videos" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'wolfpack_videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
 
 
 
-CREATE POLICY "Users can update their wolfpack videos" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'wolfpack-videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
+CREATE POLICY "Users can update their wolfpack wolfpack_videos" ON "storage"."objects" FOR UPDATE TO "authenticated" USING ((("bucket_id" = 'wolfpack-wolfpack_videos'::"text") AND (("auth"."uid"())::"text" = ("storage"."foldername"("name"))[1])));
 
 
 
@@ -38740,7 +38740,7 @@ CREATE POLICY "Video thumbnails are publicly viewable" ON "storage"."objects" FO
 
 
 
-CREATE POLICY "Videos are publicly viewable" ON "storage"."objects" FOR SELECT USING (("bucket_id" = 'videos'::"text"));
+CREATE POLICY "wolfpack_videos are publicly viewable" ON "storage"."objects" FOR SELECT USING (("bucket_id" = 'wolfpack_videos'::"text"));
 
 
 
@@ -38752,7 +38752,7 @@ CREATE POLICY "Wolfpack thumbnails are publicly viewable" ON "storage"."objects"
 
 
 
-CREATE POLICY "Wolfpack videos are publicly viewable" ON "storage"."objects" FOR SELECT USING (("bucket_id" = 'wolfpack-videos'::"text"));
+CREATE POLICY "Wolfpack wolfpack_videos are publicly viewable" ON "storage"."objects" FOR SELECT USING (("bucket_id" = 'wolfpack-wolfpack_videos'::"text"));
 
 
 
@@ -39160,15 +39160,15 @@ GRANT ALL ON FUNCTION "public"."admin_send_chat_message"("p_message" "text", "p_
 
 
 
-GRANT ALL ON FUNCTION "public"."admin_send_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."admin_send_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."admin_send_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."admin_send_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."admin_send_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."admin_send_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_id" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."admin_send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."admin_send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."admin_send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."admin_send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."admin_send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."admin_send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "service_role";
 
 
 
@@ -41082,9 +41082,9 @@ GRANT ALL ON FUNCTION "public"."get_user_interactions"("user_uuid" "uuid", "inte
 
 
 
-GRANT ALL ON FUNCTION "public"."get_user_liked_videos"("target_user_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_user_liked_videos"("target_user_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_user_liked_videos"("target_user_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_user_liked_wolfpack_videos"("target_user_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."get_user_liked_wolfpack_videos"("target_user_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_user_liked_wolfpack_videos"("target_user_id" "uuid") TO "service_role";
 
 
 
@@ -41178,9 +41178,9 @@ GRANT ALL ON FUNCTION "public"."get_venue_pulse_summary"("p_location_id" "uuid",
 
 
 
-GRANT ALL ON FUNCTION "public"."get_video_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_video_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_video_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_video_wolfpack_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."get_video_wolfpack_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_video_wolfpack_comments"("p_video_id" "uuid", "p_limit" integer, "p_offset" integer) TO "service_role";
 
 
 
@@ -41286,9 +41286,9 @@ GRANT ALL ON FUNCTION "public"."get_wolfpack_metrics"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_wolfpack_posts_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_wolfpack_posts_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) TO "authenticated";
-GRANT ALL ON FUNCTION "public"."get_wolfpack_posts_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) TO "service_role";
+GRANT ALL ON FUNCTION "public"."get_wolfpack_posts_wolfpack_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) TO "anon";
+GRANT ALL ON FUNCTION "public"."get_wolfpack_posts_wolfpack_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."get_wolfpack_posts_wolfpack_comments"("p_video_ids" "uuid"[], "p_limit_per_post" integer) TO "service_role";
 
 
 
@@ -42356,9 +42356,9 @@ GRANT ALL ON FUNCTION "public"."send_dj_broadcast_with_questions"("p_dj_id" "uui
 
 
 
-GRANT ALL ON FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."send_flirt_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_flirt_type" "text") TO "service_role";
 
 
 
@@ -42392,9 +42392,9 @@ GRANT ALL ON FUNCTION "public"."send_pack_message"("p_pack_id" "uuid", "p_conten
 
 
 
-GRANT ALL ON FUNCTION "public"."send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."send_private_message"("p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."send_private_message"("p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "service_role";
 
 
 
@@ -42404,15 +42404,15 @@ GRANT ALL ON FUNCTION "public"."send_private_message"("p_receiver_id" "uuid", "p
 
 
 
-GRANT ALL ON FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_message" "text", "p_image_url" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."send_private_message"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_message" "text", "p_image_url" "text") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."send_private_message_simple"("p_to_user_id" "uuid", "p_message" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."send_private_message_simple"("p_to_user_id" "uuid", "p_message" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."send_private_message_simple"("p_to_user_id" "uuid", "p_message" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."send_private_message_simple"("p_recipient_id" "uuid", "p_message" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."send_private_message_simple"("p_recipient_id" "uuid", "p_message" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."send_private_message_simple"("p_recipient_id" "uuid", "p_message" "text") TO "service_role";
 
 
 
@@ -42422,9 +42422,9 @@ GRANT ALL ON FUNCTION "public"."send_wolf_chat_message"("p_user_id" "uuid", "p_l
 
 
 
-GRANT ALL ON FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") TO "anon";
-GRANT ALL ON FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_to_user_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") TO "service_role";
+GRANT ALL ON FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."send_wolf_pack_interaction"("p_from_user_id" "uuid", "p_recipient_id" "uuid", "p_location_id" "uuid", "p_interaction_type" "text") TO "service_role";
 
 
 
@@ -43217,9 +43217,9 @@ GRANT ALL ON FUNCTION "public"."which_table_to_use"("p_feature" "text") TO "serv
 
 
 
-GRANT ALL ON FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_wolfpack_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_wolfpack_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."wolfpack_complete_video_upload"("p_upload_id" "uuid", "p_caption" "text", "p_hashtags" "text"[], "p_is_private" boolean, "p_allows_wolfpack_comments" boolean, "p_allows_duets" boolean, "p_location_id" "uuid") TO "service_role";
 
 
 
@@ -43616,9 +43616,9 @@ GRANT ALL ON TABLE "public"."wolfpack_videos" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."my_videos" TO "anon";
-GRANT ALL ON TABLE "public"."my_videos" TO "authenticated";
-GRANT ALL ON TABLE "public"."my_videos" TO "service_role";
+GRANT ALL ON TABLE "public"."my_wolfpack_videos" TO "anon";
+GRANT ALL ON TABLE "public"."my_wolfpack_videos" TO "authenticated";
+GRANT ALL ON TABLE "public"."my_wolfpack_videos" TO "service_role";
 
 
 
@@ -43874,9 +43874,9 @@ GRANT ALL ON TABLE "public"."wolfpack_user_settings" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."wolfpack_video_likes" TO "anon";
-GRANT ALL ON TABLE "public"."wolfpack_video_likes" TO "authenticated";
-GRANT ALL ON TABLE "public"."wolfpack_video_likes" TO "service_role";
+GRANT ALL ON TABLE "public"."wolfpack_wolfpack_video_likes" TO "anon";
+GRANT ALL ON TABLE "public"."wolfpack_wolfpack_video_likes" TO "authenticated";
+GRANT ALL ON TABLE "public"."wolfpack_wolfpack_video_likes" TO "service_role";
 
 
 

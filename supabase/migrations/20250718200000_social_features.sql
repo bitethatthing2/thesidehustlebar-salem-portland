@@ -10,12 +10,12 @@ CREATE TABLE IF NOT EXISTS wolfpack_likes (
   UNIQUE(user_id, video_id) -- Prevent duplicate likes
 );
 
--- Create comments table
-CREATE TABLE IF NOT EXISTS wolfpack_comments (
+-- Create wolfpack_comments table
+CREATE TABLE IF NOT EXISTS wolfpack_comments(
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   video_id UUID NOT NULL REFERENCES wolfpack_videos(id) ON DELETE CASCADE,
-  parent_id UUID REFERENCES wolfpack_comments(id) ON DELETE CASCADE, -- For nested comments
+  parent_id UUID REFERENCES wolfpack_comments(id) ON DELETE CASCADE, -- For nested wolfpack_comments
   content TEXT NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 500),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -53,7 +53,7 @@ CREATE INDEX idx_wolfpack_comment_reactions_comment_id ON wolfpack_comment_react
 
 -- Enable Row Level Security
 ALTER TABLE wolfpack_likes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE wolfpack_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wolfpack_commentsENABLE ROW LEVEL SECURITY;
 ALTER TABLE wolfpack_follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE wolfpack_comment_reactions ENABLE ROW LEVEL SECURITY;
 
@@ -67,17 +67,17 @@ CREATE POLICY "Users can create their own likes" ON wolfpack_likes
 CREATE POLICY "Users can delete their own likes" ON wolfpack_likes
   FOR DELETE USING (auth.uid() = user_id);
 
--- RLS Policies for comments
-CREATE POLICY "Users can view all non-deleted comments" ON wolfpack_comments
+-- RLS Policies for wolfpack_comments
+CREATE POLICY "Users can view all non-deleted wolfpack_comments" ON wolfpack_comments
   FOR SELECT USING (NOT is_deleted);
 
-CREATE POLICY "Users can create comments" ON wolfpack_comments
+CREATE POLICY "Users can create wolfpack_comments" ON wolfpack_comments
   FOR INSERT WITH CHECK (auth.uid() = user_id AND NOT is_deleted);
 
-CREATE POLICY "Users can update their own comments" ON wolfpack_comments
+CREATE POLICY "Users can update their own wolfpack_comments" ON wolfpack_comments
   FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can soft delete their own comments" ON wolfpack_comments
+CREATE POLICY "Users can soft delete their own wolfpack_comments" ON wolfpack_comments
   FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (is_deleted = true);
 
 -- RLS Policies for follows
@@ -104,13 +104,13 @@ CREATE POLICY "Users can delete their own reactions" ON wolfpack_comment_reactio
 CREATE OR REPLACE FUNCTION get_video_stats(video_uuid UUID)
 RETURNS TABLE (
   likes_count BIGINT,
-  comments_count BIGINT
+  wolfpack_comments_count BIGINT
 ) AS $$
 BEGIN
   RETURN QUERY
   SELECT 
     (SELECT COUNT(*) FROM wolfpack_likes WHERE video_id = video_uuid) as likes_count,
-    (SELECT COUNT(*) FROM wolfpack_comments WHERE video_id = video_uuid AND NOT is_deleted) as comments_count;
+    (SELECT COUNT(*) FROM wolfpack_commentsWHERE video_id = video_uuid AND NOT is_deleted) as wolfpack_comments_count;
 END;
 $$ LANGUAGE plpgsql STABLE;
 
@@ -139,7 +139,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- Update trigger for comments updated_at
+-- Update trigger for wolfpack_comments updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN

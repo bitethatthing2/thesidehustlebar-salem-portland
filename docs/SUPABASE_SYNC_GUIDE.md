@@ -16,7 +16,7 @@ npm run db:check
 
 ### 3. Use Typed Functions
 ```typescript
-import { useComments } from '@/hooks/useComments'
+import { usewolfpack_comments } from '@/hooks/usewolfpack_comments'
 import { useLikes } from '@/hooks/useLikes'
 import { usewolfpack_posts } from '@/hooks/usewolfpack_posts'
 ```
@@ -38,7 +38,7 @@ import { usewolfpack_posts } from '@/hooks/usewolfpack_posts'
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Components    │    │   React Hooks    │    │ Database Layer  │
 │                 │────▶│                  │────▶│                 │
-│ VideoComments   │    │ useComments      │    │ comments.ts     │
+│ Videowolfpack_comments   │    │ usewolfpack_comments      │    │ wolfpack_comments.ts     │
 │ LikeButton      │    │ useLikes         │    │ likes.ts        │
 │ PostFeed        │    │ usewolfpack_posts         │    │ wolfpack_posts.ts        │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
@@ -89,7 +89,7 @@ const supabaseClient = createBrowserClient<Database>(
 
 ## 🗄️ Database Helper Functions
 
-### Comments (`/lib/database/comments.ts`)
+### wolfpack_comments (`/lib/database/wolfpack_comments.ts`)
 
 ```typescript
 // ✅ Correct table name and columns
@@ -122,24 +122,24 @@ const post: WolfpackVideo = await createPost({
 
 ## ⚛️ React Hooks
 
-### useComments Hook
+### usewolfpack_comments Hook
 
 ```typescript
-function MyCommentsComponent({ postId }: { postId: string }) {
+function Mywolfpack_commentsComponent({ postId }: { postId: string }) {
   const {
-    comments,
+    wolfpack_comments,
     loading,
     error,
     addComment,
     editComment,
     removeComment,
     commentCount
-  } = useComments(postId)
+  } = usewolfpack_comments(postId)
 
   const handleAddComment = async (content: string) => {
     try {
       await addComment(content)
-      // Comments automatically updated!
+      // wolfpack_comments automatically updated!
     } catch (error) {
       // Handle error
     }
@@ -147,7 +147,7 @@ function MyCommentsComponent({ postId }: { postId: string }) {
 
   return (
     <div>
-      {comments.map(comment => (
+      {wolfpack_comments.map(comment => (
         <div key={comment.id}>
           {comment.content}
           {comment.user?.display_name}
@@ -208,16 +208,16 @@ function FeedComponent() {
 
 ## 🔄 Real-time Sync
 
-### Real-time Comments
+### Real-time wolfpack_comments
 
 ```typescript
-import { useRealtimeComments } from '@/hooks/useRealtimeSync'
+import { useRealtimewolfpack_comments } from '@/hooks/useRealtimeSync'
 
-function CommentsSection({ postId }: { postId: string }) {
-  const { comments, addComment } = useComments(postId)
+function wolfpack_commentsSection({ postId }: { postId: string }) {
+  const { wolfpack_comments, addComment } = usewolfpack_comments(postId)
 
-  // Automatically sync new comments in real-time
-  useRealtimeComments(
+  // Automatically sync new wolfpack_comments in real-time
+  useRealtimewolfpack_comments(
     postId,
     (newComment) => {
       // Real-time comment appears instantly
@@ -270,9 +270,9 @@ const { data } = await supabase
 ✅ **New Way:**
 ```typescript
 // Safe: Typed function with correct schema
-import { getCommentsForPost } from '@/lib/database/comments'
+import { getwolfpack_commentsForPost } from '@/lib/database/wolfpack_comments'
 
-const comments = await getCommentsForPost(postId) // ✅ Typed & correct
+const wolfpack_comments = await getwolfpack_commentsForPost(postId) // ✅ Typed & correct
 ```
 
 #### 2. Replace Custom Hooks
@@ -280,7 +280,7 @@ const comments = await getCommentsForPost(postId) // ✅ Typed & correct
 ❌ **Old Way:**
 ```typescript
 // Custom implementation with potential inconsistencies
-const [comments, setComments] = useState([])
+const [wolfpack_comments, setwolfpack_comments] = useState([])
 const [loading, setLoading] = useState(true)
 
 useEffect(() => {
@@ -291,7 +291,7 @@ useEffect(() => {
 ✅ **New Way:**
 ```typescript
 // Standardized hook with proper error handling
-const { comments, loading, addComment } = useComments(postId)
+const { wolfpack_comments, loading, addComment } = usewolfpack_comments(postId)
 ```
 
 #### 3. Replace Manual Real-time Setup
@@ -301,7 +301,7 @@ const { comments, loading, addComment } = useComments(postId)
 // Manual subscription management
 useEffect(() => {
   const subscription = supabase
-    .channel('comments')
+    .channel('wolfpack_comments')
     .on('postgres_changes', ...)
     .subscribe()
   
@@ -312,7 +312,7 @@ useEffect(() => {
 ✅ **New Way:**
 ```typescript
 // Automatic real-time sync
-useRealtimeComments(postId, onNewComment)
+useRealtimewolfpack_comments(postId, onNewComment)
 ```
 
 ## 🎯 Best Practices
@@ -331,7 +331,7 @@ interface Comment { /* ... */ }
 
 ```typescript
 // ✅ Use helper functions
-import { createComment } from '@/lib/database/comments'
+import { createComment } from '@/lib/database/wolfpack_comments'
 await createComment(postId, content)
 
 // ❌ Don't make direct calls
@@ -423,7 +423,7 @@ npm run types:generate
 **Solution:** Check subscriptions
 ```typescript
 // Make sure you're using the hooks correctly
-useRealtimeComments(postId, onNewComment) // ✅
+useRealtimewolfpack_comments(postId, onNewComment) // ✅
 
 // Not creating manual subscriptions
 const subscription = supabase.channel(...) // ❌
@@ -450,7 +450,7 @@ const { wolfpack_posts, loadMore, hasMore } = useFeedwolfpack_posts(20) // Load 
 
 ```typescript
 // Only subscribe when component is visible
-useRealtimeComments(
+useRealtimewolfpack_comments(
   postId,
   onNewComment,
   undefined,

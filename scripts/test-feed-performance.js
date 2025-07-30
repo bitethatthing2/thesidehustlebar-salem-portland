@@ -107,18 +107,18 @@ async function testFeedQueries() {
     'User Likes Batch Query',
     async () => {
       // First get some video IDs
-      const { data: videos } = await supabase
+      const { data: wolfpack_videos } = await supabase
         .from('wolfpack_videos')
         .select('id')
         .eq('is_active', true)
         .limit(5);
       
-      if (!videos || videos.length === 0) {
+      if (!wolfpack_videos || wolfpack_videos.length === 0) {
         return { data: [], error: null };
       }
       
-      const videoIds = videos.map(v => v.id);
-      return supabase.rpc('get_user_video_likes', {
+      const videoIds = wolfpack_videos.map(v => v.id);
+      return supabase.rpc('get_user_wolfpack_video_likes', {
         p_user_id: null, // No user for test
         p_video_ids: videoIds
       });

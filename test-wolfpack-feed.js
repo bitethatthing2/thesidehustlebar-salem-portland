@@ -12,22 +12,22 @@ async function testWolfpackFeed() {
   try {
     // 1. Test direct table query
     console.log('1. Testing direct wolfpack_videos table query:');
-    const { data: videos, error: videosError } = await supabase
+    const { data: wolfpack_videos, error: wolfpack_videosError } = await supabase
       .from('wolfpack_videos')
       .select('*')
       .eq('is_active', true)
       .limit(5);
 
-    if (videosError) {
-      console.error('Error querying wolfpack_videos:', videosError);
+    if (wolfpack_videosError) {
+      console.error('Error querying wolfpack_videos:', wolfpack_videosError);
     } else {
-      console.log(`Found ${videos?.length || 0} videos in wolfpack_videos table`);
-      if (videos?.length > 0) {
+      console.log(`Found ${wolfpack_videos?.length || 0} wolfpack_videos in wolfpack_videos table`);
+      if (wolfpack_videos?.length > 0) {
         console.log('Sample video:', {
-          id: videos[0].id,
-          caption: videos[0].caption,
-          video_url: videos[0].video_url ? 'URL present' : 'No URL',
-          created_at: videos[0].created_at
+          id: wolfpack_videos[0].id,
+          caption: wolfpack_videos[0].caption,
+          video_url: wolfpack_videos[0].video_url ? 'URL present' : 'No URL',
+          created_at: wolfpack_videos[0].created_at
         });
       }
     }
@@ -56,7 +56,7 @@ async function testWolfpackFeed() {
 
     // 3. Test with user join
     console.log('\n3. Testing wolfpack_videos with user join:');
-    const { data: videosWithUser, error: joinError } = await supabase
+    const { data: wolfpack_videosWithUser, error: joinError } = await supabase
       .from('wolfpack_videos')
       .select(`
         *,
@@ -75,14 +75,14 @@ async function testWolfpackFeed() {
     if (joinError) {
       console.error('Error querying with user join:', joinError);
     } else {
-      console.log(`Found ${videosWithUser?.length || 0} videos with user data`);
-      if (videosWithUser?.length > 0) {
+      console.log(`Found ${wolfpack_videosWithUser?.length || 0} wolfpack_videos with user data`);
+      if (wolfpack_videosWithUser?.length > 0) {
         console.log('Sample video with user:', {
-          id: videosWithUser[0].id,
-          caption: videosWithUser[0].caption,
-          user: videosWithUser[0].user ? {
-            username: videosWithUser[0].user.username,
-            display_name: videosWithUser[0].user.display_name
+          id: wolfpack_videosWithUser[0].id,
+          caption: wolfpack_videosWithUser[0].caption,
+          user: wolfpack_videosWithUser[0].user ? {
+            username: wolfpack_videosWithUser[0].user.username,
+            display_name: wolfpack_videosWithUser[0].user.display_name
           } : 'No user data'
         });
       }

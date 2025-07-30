@@ -36,12 +36,12 @@ NOTICE: - Added cursor-based pagination support
 - `idx_wolfpack_videos_search` - Full-text search (GIN index)
 - `idx_wolfpack_likes_video_user` - Optimized likes lookups
 - `idx_wolfpack_follows_follower_following` - Optimized follows
-- `idx_wolfpack_comments_video_active` - Active comments only
+- `idx_wolfpack_comments_video_active` - Active wolfpack_comments only
 
 ### ✅ New Database Functions
 - `get_wolfpack_feed_optimized()` - Eliminates N+1 queries
 - `get_wolfpack_feed_cursor()` - Cursor-based pagination
-- `get_user_video_likes()` - Batch likes lookup
+- `get_user_wolfpack_video_likes()` - Batch likes lookup
 - `get_user_following()` - Batch following lookup
 
 ### ✅ Performance Improvements

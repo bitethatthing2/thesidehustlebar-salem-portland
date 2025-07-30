@@ -233,7 +233,7 @@ self.addEventListener('message', event => {
   }
 });
 
-// Sync Wolfpack Actions (likes, comments, follows)
+// Sync Wolfpack Actions (likes, wolfpack_comments, follows)
 async function syncWolfpackActions() {
   try {
     const db = await openDB();
@@ -396,7 +396,7 @@ async function updateContent() {
     console.log('[SW] Updating content via periodic sync');
     
     // Update feed cache with fresh data
-    const response = await fetch('/api/wolfpack/videos?limit=20');
+    const response = await fetch('/api/wolfpack/wolfpack_videos?limit=20');
     if (response.ok) {
       const data = await response.json();
       await cacheFeedData(data);

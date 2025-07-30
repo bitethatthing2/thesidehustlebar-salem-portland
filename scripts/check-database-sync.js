@@ -64,14 +64,14 @@ async function checkCriticalColumns() {
   try {
     const { data, error } = await supabase
       .from('wolfpack_comments')
-      .select('id, video_id, user_id, content, parent_comment_id, like_count, is_pinned, is_edited, created_at, updated_at')
+      .select('id, video_id, user_id, content, parent_id, created_at, updated_at, is_deleted')
       .limit(1)
     
     if (error) {
       console.error('❌ wolfpack_comments column check failed:', error.message)
       checks.push(false)
     } else {
-      console.log('✅ wolfpack_comments columns are correct (video_id, parent_comment_id, like_count, etc.)')
+      console.log('✅ wolfpack_comments columns are correct (video_id, parent_id, is_deleted, etc.)')
       checks.push(true)
     }
   } catch (error) {

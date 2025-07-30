@@ -14,7 +14,7 @@ DROP INDEX IF EXISTS idx_wolfpack_videos_created_at;
 DROP INDEX IF EXISTS idx_wolfpack_videos_active;
 
 -- ===================================================================
--- OPTIMIZED INDEXES FOR WOLFPACK_VIDEOS
+-- OPTIMIZED INDEXES FOR wolfpack_videos
 -- ===================================================================
 
 -- Composite index for the main feed query (is_active + created_at)
@@ -70,7 +70,7 @@ ON wolfpack_follows(follower_id, following_id);
 CREATE INDEX IF NOT EXISTS idx_wolfpack_follows_following_follower 
 ON wolfpack_follows(following_id, follower_id);
 
--- Optimize comments for count queries
+-- Optimize wolfpack_comments for count queries
 DROP INDEX IF EXISTS idx_wolfpack_comments_video_id;
 DROP INDEX IF EXISTS idx_wolfpack_comments_video;
 
@@ -98,7 +98,7 @@ SELECT
   v.duration,
   v.view_count,
   v.like_count,
-  v.comments_count,
+  v.wolfpack_comments_count,
   v.shares_count,
   v.music_name,
   v.hashtags,
@@ -163,8 +163,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- OPTIMIZE EXISTING FUNCTIONS FOR BATCH OPERATIONS
 -- ===================================================================
 
--- Function to get user likes for multiple videos
-CREATE OR REPLACE FUNCTION get_user_video_likes(p_user_id UUID, p_video_ids UUID[])
+-- Function to get user likes for multiple wolfpack_videos
+CREATE OR REPLACE FUNCTION get_user_wolfpack_video_likes(p_user_id UUID, p_video_ids UUID[])
 RETURNS UUID[] AS $$
 BEGIN
   RETURN ARRAY(
@@ -206,7 +206,7 @@ RETURNS TABLE (
   duration INTEGER,
   view_count INTEGER,
   like_count INTEGER,
-  comments_count INTEGER,
+  wolfpack_comments_count INTEGER,
   shares_count INTEGER,
   music_name TEXT,
   hashtags TEXT[],
@@ -249,7 +249,7 @@ BEGIN
       v.duration,
       v.view_count,
       v.like_count,
-      v.comments_count,
+      v.wolfpack_comments_count,
       v.shares_count,
       v.music_name,
       v.hashtags,

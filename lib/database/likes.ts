@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
 
 type PostLike = Database["public"]["Tables"]["wolfpack_post_likes"]["Row"];
@@ -84,8 +84,12 @@ export async function togglePostLike(
         errorMessage.includes("unique") || // Unique constraint
         errorDetails.includes("duplicate") || // Details might have more info
         errorDetails.includes("unique") || // Details might have constraint info
-        errorMessage.includes("wolfpack_video_likes_video_id_user_id_key") || // Specific constraint name
-        errorDetails.includes("wolfpack_video_likes_video_id_user_id_key"); // Or in details
+        errorMessage.includes(
+          "wolfpack_post_likes_video_id_user_id_key",
+        ) || // Specific constraint name
+        errorDetails.includes(
+          "wolfpack_post_likes_video_id_user_id_key",
+        ); // Or in details
 
       const isForeignKeyError = errorCode === "23503" && // Foreign key violation
         errorDetails.includes("key is not present in table"); // Post doesn't exist

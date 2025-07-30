@@ -1,20 +1,24 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
 import { UserService } from "@/lib/services/user.service";
 
-type Comment = Database["public"]["Tables"]["wolfpack_comments"]["Row"] & {
-  user?: Pick<
-    Database["public"]["Tables"]["users"]["Row"],
-    "id" | "first_name" | "last_name" | "avatar_url" | "display_name"
-  >;
-  replies?: Comment[];
-};
+type Comment =
+  & Database["public"]["Tables"]["wolfpack_comments"]["Row"]
+  & {
+    user?: Pick<
+      Database["public"]["Tables"]["users"]["Row"],
+      "id" | "first_name" | "last_name" | "avatar_url" | "display_name"
+    >;
+    replies?: Comment[];
+  };
 
 type CommentInsert =
   Database["public"]["Tables"]["wolfpack_comments"]["Insert"];
 
-export async function getCommentsForPost(postId: string): Promise<Comment[]> {
-  // Fetch ALL comments for this post (both root comments and replies)
+export async function getwolfpack_commentsForPost(
+  postId: string,
+): Promise<Comment[]> {
+  // Fetch ALL wolfpack_comments for this post (both root wolfpack_comments and replies)
   const { data, error } = await supabase
     .from("wolfpack_comments")
     .select(`
@@ -31,8 +35,8 @@ export async function getCommentsForPost(postId: string): Promise<Comment[]> {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching comments:", error);
-    throw new Error(`Failed to fetch comments: ${error.message}`);
+    console.error("Error fetching wolfpack_comments:", error);
+    throw new Error(`Failed to fetch wolfpack_comments: ${error.message}`);
   }
 
   return data || [];
@@ -126,7 +130,7 @@ export async function deleteComment(commentId: string): Promise<void> {
   }
 
   if (comment.user_id !== user.id) {
-    throw new Error("You can only delete your own comments");
+    throw new Error("You can only delete your own wolfpack_comments");
   }
 
   const { error } = await supabase

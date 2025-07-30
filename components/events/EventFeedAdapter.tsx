@@ -14,7 +14,7 @@ interface EventFeedData {
   media_url?: string;
   created_at: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   event_data: {
     title: string;
@@ -106,7 +106,7 @@ export default function EventFeedAdapter({
           media_url: event.image_url,
           created_at: event.created_at,
           likes_count: event.event_likes?.[0]?.count || 0,
-          comments_count: 0, // Regular events don't have comments yet
+          wolfpack_comments_count: 0, // Regular events don't have wolfpack_comments yet
           shares_count: 0,
           event_data: {
             title: event.title,
@@ -135,7 +135,7 @@ export default function EventFeedAdapter({
           media_url: event.image_url,
           created_at: event.created_at,
           likes_count: event.wolf_pack_votes?.[0]?.count || 0,
-          comments_count: 0,
+          wolfpack_comments_count: 0,
           shares_count: 0,
           event_data: {
             title: event.title,

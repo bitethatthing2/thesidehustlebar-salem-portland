@@ -172,37 +172,10 @@ export function getOptimizedImageUrl(originalUrl: string | null | undefined, opt
   }
 }
 
-// Safe avatar generator that doesn't rely on external APIs
-export function generateSafeAvatarUrl(userId: string, name?: string): string {
-  // Use a simple gradient background with initials instead of external APIs
-  const colors = [
-    'bg-gradient-to-br from-blue-400 to-blue-600',
-    'bg-gradient-to-br from-green-400 to-green-600',
-    'bg-gradient-to-br from-purple-400 to-purple-600',
-    'bg-gradient-to-br from-pink-400 to-pink-600',
-    'bg-gradient-to-br from-yellow-400 to-yellow-600',
-    'bg-gradient-to-br from-red-400 to-red-600',
-    'bg-gradient-to-br from-indigo-400 to-indigo-600',
-    'bg-gradient-to-br from-teal-400 to-teal-600'
-  ];
-  
-  // Use userId to consistently pick a color
-  const colorIndex = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-  
-  return `data:image/svg+xml,${encodeURIComponent(`
-    <svg width="150" height="150" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:${getColorFromIndex(colorIndex, 0)};stop-opacity:1" />
-          <stop offset="100%" style="stop-color:${getColorFromIndex(colorIndex, 1)};stop-opacity:1" />
-        </linearGradient>
-      </defs>
-      <rect width="150" height="150" fill="url(#grad)"/>
-      <text x="75" y="85" font-family="Arial, sans-serif" font-size="48" font-weight="bold" text-anchor="middle" fill="white">
-        ${name ? name.charAt(0).toUpperCase() : 'W'}
-      </text>
-    </svg>
-  `)}`;
+// Safe avatar generator that uses CSS gradients instead of SVG data URIs
+export function generateSafeAvatarUrl(userId: string, name?: string): string | null {
+  // Return null to force fallback to CSS-based avatars
+  return null;
 }
 
 function getColorFromIndex(index: number, stop: number): string {

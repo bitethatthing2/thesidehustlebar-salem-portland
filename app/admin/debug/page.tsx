@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import AuthDebugDashboard from '@/components/admin/AuthDebugDashboard';
 import SuperAdminDashboardSwitcher from '@/components/admin/SuperAdminDashboardSwitcher';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';

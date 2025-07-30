@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { MapPin, Shield, AlertTriangle, Check, X, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { useUser, type DatabaseUser } from '@/hooks/useUser';
+import { useAuth, type DatabaseUser } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 // Interfaces for type safety
@@ -98,7 +98,7 @@ if (typeof window !== 'undefined') {
 }
 
 export function GeolocationActivation() {
-  const { user, loading: userLoading } = useUser();
+  const { currentUser, loading: userLoading } = useAuth();
   const router = useRouter();
   const [geoState, setGeoState] = useState<GeolocationState>({
     permission: 'prompt',
@@ -118,14 +118,14 @@ export function GeolocationActivation() {
   // Check if user is already an active WolfPack member
   useEffect(() => {
     async function checkMembershipStatus() {
-      if (!user?.id) return;
+      if (!currentUser?.id) return;
 
       try {
         // First get the member data from users table
         const { data: memberData, error: memberError } = await supabase
           .from("users")
           .select("id, location_id, is_wolfpack_member, wolfpack_status")
-          .eq('id', user.id)
+          .eq('id', currentUser.id)
           .eq('wolfpack_status', 'active')
           .eq('is_wolfpack_member', true)
           .maybeSingle();
@@ -157,10 +157,10 @@ export function GeolocationActivation() {
       }
     }
 
-    if (!userLoading && user) {
+    if (!userLoading && currentUser) {
       void checkMembershipStatus();
     }
-  }, [user, userLoading]);
+  }, [currentUser, userLoading]);
 
   // Stop location monitoring
   const stopLocationMonitoring = useCallback(() => {
@@ -296,13 +296,13 @@ export function GeolocationActivation() {
 
   // Join WolfPack from geolocation invitation
   const handleJoinWolfPack = async () => {
-    if (!user || !invitation.location) {
+    if (!currentUser || !invitation.location) {
       toast.error('Authentication error');
       return;
     }
 
     try {
-      await joinWolfPackFromLocation(invitation.location.id, user);
+      await joinWolfPackFromLocation(invitation.location.id, currentUser);
       
       // Update local state
       setIsWolfPackMember(true);

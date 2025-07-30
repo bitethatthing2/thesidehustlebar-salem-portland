@@ -3,8 +3,8 @@
 ## 🎯 Problem Solved
 
 Users were experiencing:
-- ❌ **Page refreshes** after posting videos/photos
-- ❌ **Manual refresh needed** to see new comments
+- ❌ **Page refreshes** after posting wolfpack_videos/photos
+- ❌ **Manual refresh needed** to see new wolfpack_comments
 - ❌ **Delayed updates** after liking posts
 - ❌ **Stale data** in the feed
 - ❌ **Poor user experience** with loading delays
@@ -12,7 +12,7 @@ Users were experiencing:
 ## ✅ Solution Implemented
 
 New real-time system with:
-- ✅ **Real-time updates** for posts, comments, and likes
+- ✅ **Real-time updates** for posts, wolfpack_comments, and likes
 - ✅ **Optimistic UI updates** - instant feedback
 - ✅ **No page refreshes** required
 - ✅ **Live subscriptions** to database changes
@@ -25,7 +25,7 @@ New real-time system with:
 **Key Features**:
 - Real-time Supabase subscriptions
 - Automatic new post insertion
-- Live stats updates (likes, comments, views)
+- Live stats updates (likes, wolfpack_comments, views)
 - Infinite scroll with caching
 - Error handling with fallbacks
 
@@ -47,8 +47,8 @@ New real-time system with:
 - Better error handling
 - Improved loading states
 
-### 4. **Optimized Comments Component** - `components/wolfpack/VideoCommentsOptimized.tsx`
-**Purpose**: Real-time comments without refresh
+### 4. **Optimized wolfpack_comments Component** - `components/wolfpack/Videowolfpack_commentsOptimized.tsx`
+**Purpose**: Real-time wolfpack_comments without refresh
 **Key Features**:
 - Live comment updates via subscriptions
 - Threaded replies with real-time nesting
@@ -88,13 +88,13 @@ User Action → Instant UI Update → Server Request → Success/Rollback
 ### **Before (Old System)**
 - 🐌 **Page reload**: 2-5 second refresh after posting
 - 🐌 **Manual refresh**: Users had to pull-to-refresh for new content  
-- 🐌 **Stale data**: Comments and likes not updating
+- 🐌 **Stale data**: wolfpack_comments and likes not updating
 - 🐌 **Poor UX**: Loading spinners and delays everywhere
 
 ### **After (New System)**
 - ⚡ **Instant feedback**: UI updates in 50ms or less
 - ⚡ **Real-time data**: New posts appear automatically
-- ⚡ **Live interactions**: Comments and likes update live
+- ⚡ **Live interactions**: wolfpack_comments and likes update live
 - ⚡ **Smooth UX**: No loading states for user actions
 
 ## 🔄 Migration Steps
@@ -110,14 +110,14 @@ cp app/(main)/wolfpack/feed/page-optimized.tsx app/(main)/wolfpack/feed/page.tsx
 
 ### Step 2: Update Components
 ```bash
-# Update VideoComments component
-cp components/wolfpack/VideoCommentsOptimized.tsx components/wolfpack/VideoComments.tsx
+# Update Videowolfpack_comments component
+cp components/wolfpack/Videowolfpack_commentsOptimized.tsx components/wolfpack/Videowolfpack_comments.tsx
 ```
 
 ### Step 3: Verify Database Tables
 Ensure these tables exist with proper RLS policies:
 - `wolfpack_videos` (posts)
-- `wolfpack_comments` (comments and replies)
+- `wolfpack_comments` (wolfpack_comments and replies)
 - `wolfpack_likes` (post likes)
 - `wolfpack_follows` (user follows)
 
@@ -135,16 +135,16 @@ import { useRealtimeFeed } from '@/lib/hooks/useRealtimeFeed';
 
 function MyFeedComponent() {
   const {
-    videos,
+    wolfpack_videos,
     loading,
     addNewVideo,
-    updateVideoStats,
+    updatewolfpack_videostats,
     refreshFeed,
     loadMore
   } = useRealtimeFeed({ userId: user?.id });
 
-  // Videos automatically update when database changes
-  return <FeedDisplay videos={videos} />;
+  // wolfpack_videos automatically update when database changes
+  return <FeedDisplay wolfpack_videos={wolfpack_videos} />;
 }
 ```
 
@@ -153,18 +153,18 @@ function MyFeedComponent() {
 import { useOptimisticActions } from '@/lib/hooks/useOptimisticActions';
 
 function VideoCard({ video }) {
-  const { handleLike, getOptimisticVideoState } = useOptimisticActions({
+  const { handleLike, getOptimisticwolfpack_videostate } = useOptimisticActions({
     userId: user?.id,
-    onUpdateVideoStats: (videoId, updates) => {
+    onUpdatewolfpack_videostats: (videoId, updates) => {
       // Update parent component immediately
       updateVideo(videoId, updates);
     }
   });
 
-  const optimisticState = getOptimisticVideoState(
+  const optimisticState = getOptimisticwolfpack_videostate(
     video.id, 
     video.likes_count, 
-    video.comments_count
+    video.wolfpack_comments_count
   );
 
   return (
@@ -177,19 +177,19 @@ function VideoCard({ video }) {
 }
 ```
 
-### **Real-time Comments**
+### **Real-time wolfpack_comments**
 ```typescript
-import VideoCommentsOptimized from '@/components/wolfpack/VideoCommentsOptimized';
+import Videowolfpack_commentsOptimized from '@/components/wolfpack/Videowolfpack_commentsOptimized';
 
 function VideoPlayer({ videoId }) {
   const [commentCount, setCommentCount] = useState(0);
 
   return (
     <div>
-      <VideoCommentsOptimized
+      <Videowolfpack_commentsOptimized
         postId={videoId}
-        isOpen={showComments}
-        onClose={() => setShowComments(false)}
+        isOpen={showwolfpack_comments}
+        onClose={() => setShowwolfpack_comments(false)}
         initialCommentCount={commentCount}
         onCommentCountChange={setCommentCount}  // Live updates
       />
@@ -239,12 +239,12 @@ const handleLike = async (videoId) => {
 // Efficient data loading with caching
 const loadFeed = async (page = 1, append = false) => {
   // Only load new data, append to existing
-  const newVideos = await fetchVideos(page);
+  const newwolfpack_videos = await fetchwolfpack_videos(page);
   
   if (append) {
-    setVideos(prev => [...prev, ...newVideos]);  // No reload
+    setwolfpack_videos(prev => [...prev, ...newwolfpack_videos]);  // No reload
   } else {
-    setVideos(newVideos);
+    setwolfpack_videos(newwolfpack_videos);
   }
 };
 ```
@@ -266,7 +266,7 @@ const loadFeed = async (page = 1, append = false) => {
 5. ✅ Should fill red, then revert when failed
 
 ### **Comment System Test**
-1. Open comments on a video
+1. Open wolfpack_comments on a video
 2. Post comment from another device
 3. ✅ Should appear in comment list automatically
 4. Reply to comment
@@ -339,4 +339,4 @@ Your Wolfpack feed now has:
 - 🚀 **Enterprise performance** - optimized for scale
 - ✨ **Delightful UX** - smooth and fast interactions
 
-Users will never need to refresh the page again! The feed updates live, comments appear instantly, and all interactions provide immediate feedback. This creates a modern social media experience that rivals the biggest platforms. 🐺🚀
+Users will never need to refresh the page again! The feed updates live, wolfpack_comments appear instantly, and all interactions provide immediate feedback. This creates a modern social media experience that rivals the biggest platforms. 🐺🚀

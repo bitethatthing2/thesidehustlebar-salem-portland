@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { getAppUserId } from '@/lib/utils/auth-helpers';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { getAppUserId } from "@/lib/utils/auth-helpers";
 
 export interface VideoComment {
   id: string;
@@ -25,24 +25,30 @@ interface UseVideoCommentsReturn {
   comments: VideoComment[];
   loading: boolean;
   error: string | null;
-  addComment: (content: string) => Promise<{ success: boolean; data?: any; error?: any }>;
+  addComment: (
+    content: string,
+  ) => Promise<{ success: boolean; data?: any; error?: any }>;
   deleteComment: (commentId: string) => Promise<boolean>;
-  refetch: () => Promise<void>;
+  refreshComments: () => Promise<void>;
 }
 
-export function useVideoComments(videoId: string): UseVideoCommentsReturn {
-  const [comments, setComments] = useState<VideoComment[]>([]);
+export function useVideoComments(
+  videoId: string,
+): UseVideoCommentsReturn {
+  const [wolfpack_comments, setwolfpack_comments] = useState<VideoComment[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load comments
-  const loadComments = useCallback(async () => {
+  // Load wolfpack_comments
+  const loadwolfpack_comments = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
       const { data, error: fetchError } = await supabase
-        .from('wolfpack_comments')
+        .from("wolfpack_comments")
         .select(`
           *,
           user:users!wolfpack_comments_user_id_fkey (
@@ -53,19 +59,19 @@ export function useVideoComments(videoId: string): UseVideoCommentsReturn {
             profile_image_url
           )
         `)
-        .eq('video_id', videoId)
-        .order('created_at', { ascending: false });
+        .eq("video_id", videoId)
+        .order("created_at", { ascending: false });
 
       if (fetchError) {
-        console.error('Error loading comments:', fetchError);
-        setError('Failed to load comments');
+        console.error("Error loading wolfpack_comments:", fetchError);
+        setError("Failed to load wolfpack_comments");
         return;
       }
 
-      setComments(data || []);
+      setwolfpack_comments(data || []);
     } catch (error) {
-      console.error('Error loading comments:', error);
-      setError('Failed to load comments');
+      console.error("Error loading wolfpack_comments:", error);
+      setError("Failed to load wolfpack_comments");
     } finally {
       setLoading(false);
     }
@@ -77,15 +83,15 @@ export function useVideoComments(videoId: string): UseVideoCommentsReturn {
       // Get the app user ID (maps from auth.users to public.users)
       const appUserId = await getAppUserId(supabase);
       if (!appUserId) {
-        throw new Error('Not authenticated or user not found');
+        throw new Error("Not authenticated or user not found");
       }
 
       const { data, error } = await supabase
-        .from('wolfpack_comments')
+        .from("wolfpack_comments")
         .insert({
           video_id: videoId,
           user_id: appUserId, // Use app user ID
-          content: content.trim()
+          content: content.trim(),
         })
         .select(`
           *,
@@ -101,11 +107,11 @@ export function useVideoComments(videoId: string): UseVideoCommentsReturn {
       if (error) throw error;
 
       // Add to local state
-      setComments(prev => [data, ...prev]);
+      setwolfpack_comments((prev) => [data, ...prev]);
       return { success: true, data };
     } catch (error) {
-      console.error('Error adding comment:', error);
-      setError('Failed to add comment');
+      console.error("Error adding comment:", error);
+      setError("Failed to add comment");
       return { success: false, error };
     }
   }, [videoId]);
@@ -114,37 +120,39 @@ export function useVideoComments(videoId: string): UseVideoCommentsReturn {
     try {
       const appUserId = await getAppUserId(supabase);
       if (!appUserId) {
-        throw new Error('Not authenticated or user not found');
+        throw new Error("Not authenticated or user not found");
       }
 
       const { error } = await supabase
-        .from('wolfpack_comments')
+        .from("wolfpack_comments")
         .update({ is_deleted: true })
-        .eq('id', commentId)
-        .eq('user_id', appUserId);
+        .eq("id", commentId)
+        .eq("user_id", appUserId);
 
       if (error) throw error;
 
       // Remove from local state
-      setComments(prev => prev.filter(comment => comment.id !== commentId));
+      setwolfpack_comments((prev) =>
+        prev.filter((comment) => comment.id !== commentId)
+      );
       return true;
     } catch (error) {
-      console.error('Error deleting comment:', error);
-      setError('Failed to delete comment');
+      console.error("Error deleting comment:", error);
+      setError("Failed to delete comment");
       return false;
     }
   };
 
   useEffect(() => {
-    loadComments();
-  }, [loadComments]);
+    loadwolfpack_comments();
+  }, [loadwolfpack_comments]);
 
-  return { 
-    comments, 
-    loading, 
+  return {
+    comments: wolfpack_comments,
+    loading,
     error,
-    addComment, 
+    addComment,
     deleteComment,
-    refetch: loadComments 
+    refreshComments: loadwolfpack_comments,
   };
 }

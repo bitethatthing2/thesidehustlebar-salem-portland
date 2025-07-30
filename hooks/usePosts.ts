@@ -11,15 +11,17 @@ import {
 } from "@/lib/database/wolfpack_posts";
 import { Database } from "@/types/database.types";
 
-type WolfpackVideo = Database["public"]["Tables"]["wolfpack_videos"]["Row"] & {
-  user?: Pick<
-    Database["public"]["Tables"]["users"]["Row"],
-    "id" | "first_name" | "last_name" | "avatar_url" | "display_name"
-  >;
-  like_count?: number;
-  comment_count?: number;
-  user_liked?: boolean;
-};
+type WolfpackVideo =
+  & Database["public"]["Tables"]["wolfpack_videos"]["Row"]
+  & {
+    user?: Pick<
+      Database["public"]["Tables"]["users"]["Row"],
+      "id" | "first_name" | "last_name" | "avatar_url" | "display_name"
+    >;
+    like_count?: number;
+    comment_count?: number;
+    user_liked?: boolean;
+  };
 
 interface Usewolfpack_postsReturn {
   wolfpack_posts: WolfpackVideo[];
@@ -132,7 +134,7 @@ interface UseSinglePostReturn {
   stats: {
     views: number;
     likes: number;
-    comments: number;
+    wolfpack_comments: number;
   };
 }
 
@@ -140,7 +142,11 @@ export function usePost(postId: string): UseSinglePostReturn {
   const [post, setPost] = useState<WolfpackVideo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [stats, setStats] = useState({ views: 0, likes: 0, comments: 0 });
+  const [stats, setStats] = useState({
+    views: 0,
+    likes: 0,
+    wolfpack_comments: 0,
+  });
 
   const loadPost = useCallback(async () => {
     if (!postId) return;
@@ -224,7 +230,7 @@ export function usePost(postId: string): UseSinglePostReturn {
   };
 }
 
-export function useUserwolfpack_posts(userId: string, limit = 20) {
+export function useAuthwolfpack_posts(userId: string, limit = 20) {
   const [wolfpack_posts, setwolfpack_posts] = useState<WolfpackVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);

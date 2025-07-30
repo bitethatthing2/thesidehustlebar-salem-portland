@@ -75,7 +75,7 @@ export default function UserProfile({ isOpen, onClose, userId }: UserProfileProp
       { name: 'Pack Leader', icon: Crown, description: 'Leading the Salem pack' },
       { name: 'Regular', icon: Star, description: '100+ visits to Side Hustle' },
       { name: 'Social Butterfly', icon: Users, description: '50+ wolfpack connections' },
-      { name: 'Video Creator', icon: Camera, description: '25+ videos posted' }
+      { name: 'Video Creator', icon: Camera, description: '25+ wolfpack_videos posted' }
     ]
   };
 
@@ -84,21 +84,21 @@ export default function UserProfile({ isOpen, onClose, userId }: UserProfileProp
       id: '1',
       thumbnail: '/icons/wolf-icon.png',
       likes: 3420,
-      comments: 156,
+      wolfpack_comments: 156,
       isVideo: true
     },
     {
       id: '2',
       thumbnail: '/icons/wolf-icon.png',
       likes: 5678,
-      comments: 234,
+      wolfpack_comments: 234,
       isVideo: true
     },
     {
       id: '3',
       thumbnail: '/icons/wolf-icon.png',
       likes: 4321,
-      comments: 198,
+      wolfpack_comments: 198,
       isVideo: true
     }
   ];

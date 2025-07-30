@@ -1,17 +1,17 @@
-# Complete New User Fix - Profile, Posts & Comments
+# Complete New User Fix - Profile, Posts & wolfpack_comments
 
 ## 🐛 The Problem
 New users who signed up couldn't:
 - ❌ Save their profile information
-- ❌ Create posts (videos/photos) 
-- ❌ Comment on posts or reply to comments
+- ❌ Create posts (wolfpack_videos/photos) 
+- ❌ Comment on posts or reply to wolfpack_comments
 
 ## 🔧 Root Cause Analysis
 Two main issues were identified:
 
 ### 1. **Frontend Timing Issue**
 - Database trigger creates user profile automatically on signup
-- `useUser` hook hadn't loaded the profile yet, so `user.id` was undefined
+- `useAuth` hook hadn't loaded the profile yet, so `user.id` was undefined
 - Components failed when trying to use `user.id` for database operations
 
 ### 2. **Backend RLS Policy Inconsistency**  
@@ -26,7 +26,7 @@ Two main issues were identified:
 - `lib/services/user-profile.service.ts` - Added auth ID lookup methods
 - `components/wolfpack/WolfpackProfileManager.tsx` - Enhanced profile saving
 - `components/wolfpack/PostCreator.tsx` - Fixed post creation
-- `components/wolfpack/VideoComments.tsx` - Fixed comment/reply submission
+- `components/wolfpack/Videowolfpack_comments.tsx` - Fixed comment/reply submission
 
 **Pattern Used:**
 ```javascript
@@ -111,7 +111,7 @@ SELECT get_user_id_from_auth(); -- Should return your user ID when authenticated
 - **Before**: New users got RLS policy violations
 - **After**: Uses helper function to map auth ID to database user ID
 
-### Comments & Replies
+### wolfpack_comments & Replies
 - **Before**: Authentication failures for new users
 - **After**: Consistent user ID resolution across all social features
 
@@ -164,7 +164,7 @@ The `get_user_id_from_auth()` function adds a lookup query to each policy check.
 - [ ] New user can edit profile immediately after signup
 - [ ] New user can create posts without page refresh
 - [ ] New user can comment on posts
-- [ ] New user can reply to comments  
+- [ ] New user can reply to wolfpack_comments  
 - [ ] Existing users still work normally
 - [ ] RLS policies prevent unauthorized access
 - [ ] Database helper function returns correct user IDs

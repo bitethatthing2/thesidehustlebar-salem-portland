@@ -102,7 +102,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create function to automatically create notifications for comments
+-- Create function to automatically create notifications for wolfpack_comments
 CREATE OR REPLACE FUNCTION create_comment_notification()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -120,7 +120,7 @@ BEGIN
   JOIN users u ON u.id = NEW.user_id
   WHERE p.id = NEW.video_id;
   
-  -- Don't notify if user comments on their own post
+  -- Don't notify if user wolfpack_comments on their own post
   IF video_owner_id != NEW.user_id THEN
     -- Create notification
     INSERT INTO wolfpack_activity_notifications (

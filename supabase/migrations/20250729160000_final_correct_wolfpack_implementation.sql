@@ -1,9 +1,10 @@
--- Final correct implementation for wolfpack likes and comments
+-- Final correct implementation for wolfpack likes and wolfpack_comments
 -- This restores the proper foreign key relationships to public.users
 -- and includes correct RLS policies with proper auth mapping
 
 -- Drop any incorrectly created tables
 DROP TABLE IF EXISTS wolfpack_likes CASCADE;
+DROP TABLE IF EXISTS wolfpack_comments CASCADE;
 DROP TABLE IF EXISTS wolfpack_comments CASCADE;
 
 -- Create wolfpack_post_likes table (following existing naming convention)
@@ -57,17 +58,17 @@ CREATE POLICY "Users can remove own likes" ON wolfpack_post_likes
   );
 
 -- RLS Policies for wolfpack_comments
-CREATE POLICY "Anyone can view non-deleted comments" ON wolfpack_comments
+CREATE POLICY "Anyone can view non-deleted wolfpack_comments" ON wolfpack_comments
   FOR SELECT USING (NOT is_deleted);
 
-CREATE POLICY "Users can add comments" ON wolfpack_comments
+CREATE POLICY "Users can add wolfpack_comments" ON wolfpack_comments
   FOR INSERT WITH CHECK (
     user_id IN (
       SELECT id FROM public.users WHERE auth_id = auth.uid()
     )
   );
 
-CREATE POLICY "Users can edit own comments" ON wolfpack_comments
+CREATE POLICY "Users can edit own wolfpack_comments" ON wolfpack_comments
   FOR UPDATE USING (
     user_id IN (
       SELECT id FROM public.users WHERE auth_id = auth.uid()
@@ -78,7 +79,7 @@ CREATE POLICY "Users can edit own comments" ON wolfpack_comments
     )
   );
 
--- Update trigger for comments updated_at
+-- Update trigger for wolfpack_comments updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN

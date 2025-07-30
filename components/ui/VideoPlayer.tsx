@@ -116,7 +116,7 @@ export const VideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
           onPlay={handleVideoPlay}
           onPause={handleVideoPause}
           onEnded={handleVideoEnded}
-          muted={isMuted} // Videos with sound require user interaction
+          muted={isMuted} // wolfpack_videos with sound require user interaction
           playsInline
           preload="metadata"
           className="w-full h-full object-cover cursor-pointer"
@@ -239,7 +239,7 @@ export const SimpleVideoPlayer = forwardRef<HTMLVideoElement, VideoPlayerProps>(
         ref={mergedRef}
         src={src}
         onClick={handleVideoClick}
-        muted // Videos with sound require user interaction
+        muted // wolfpack_videos with sound require user interaction
         playsInline
         preload="metadata"
         className={`cursor-pointer ${className}`}

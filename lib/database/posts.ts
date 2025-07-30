@@ -1,15 +1,17 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 import { Database } from "@/types/database.types";
 
-type WolfpackVideo = Database["public"]["Tables"]["wolfpack_videos"]["Row"] & {
-  user?: Pick<
-    Database["public"]["Tables"]["users"]["Row"],
-    "id" | "first_name" | "last_name" | "avatar_url" | "display_name"
-  >;
-  like_count?: number;
-  comment_count?: number;
-  user_liked?: boolean;
-};
+type WolfpackVideo =
+  & Database["public"]["Tables"]["wolfpack_videos"]["Row"]
+  & {
+    user?: Pick<
+      Database["public"]["Tables"]["users"]["Row"],
+      "id" | "first_name" | "last_name" | "avatar_url" | "display_name"
+    >;
+    like_count?: number;
+    comment_count?: number;
+    user_liked?: boolean;
+  };
 
 type WolfpackVideoInsert =
   Database["public"]["Tables"]["wolfpack_videos"]["Insert"];
@@ -22,10 +24,10 @@ export async function getFeedwolfpack_posts(
 ): Promise<WolfpackVideo[]> {
   // Verify authentication first
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-  
+
   if (authError || !user) {
-    console.error('[AUTH] User not authenticated for feed fetch');
-    throw new Error('Authentication required');
+    console.error("[AUTH] User not authenticated for feed fetch");
+    throw new Error("Authentication required");
   }
 
   // Now make the query - RLS policies will use auth.uid()
@@ -126,13 +128,15 @@ export async function createPost(postData: {
 
   // Get the public user profile using the auth ID
   const { data: publicUser, error: userError } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', authUser.id)
+    .from("users")
+    .select("id")
+    .eq("auth_id", authUser.id)
     .single();
-    
+
   if (userError || !publicUser) {
-    throw new Error(`Error fetching user profile: ${userError?.message || 'User not found'}`);
+    throw new Error(
+      `Error fetching user profile: ${userError?.message || "User not found"}`,
+    );
   }
 
   const insertData: WolfpackVideoInsert = {
@@ -217,13 +221,15 @@ export async function deletePost(postId: string): Promise<boolean> {
 
   // Get the public user profile using the auth ID
   const { data: publicUser, error: userError } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_id', authUser.id)
+    .from("users")
+    .select("id")
+    .eq("auth_id", authUser.id)
     .single();
-    
+
   if (userError || !publicUser) {
-    throw new Error(`Error fetching user profile: ${userError?.message || 'User not found'}`);
+    throw new Error(
+      `Error fetching user profile: ${userError?.message || "User not found"}`,
+    );
   }
 
   // Soft delete by setting is_active to false
@@ -240,7 +246,7 @@ export async function deletePost(postId: string): Promise<boolean> {
     console.error("Error deleting post:", error);
     throw new Error(`Failed to delete post: ${error.message}`);
   }
-  
+
   return true;
 }
 
@@ -262,7 +268,7 @@ export async function incrementViewCount(postId: string): Promise<void> {
 export async function getwolfpack_poststats(postId: string): Promise<{
   views: number;
   likes: number;
-  comments: number;
+  wolfpack_comments: number;
 }> {
   // Get post basic stats
   const { data: post, error: postError } = await supabase
@@ -273,7 +279,7 @@ export async function getwolfpack_poststats(postId: string): Promise<{
 
   if (postError) {
     console.error("Error fetching post stats:", postError);
-    return { views: 0, likes: 0, comments: 0 };
+    return { views: 0, likes: 0, wolfpack_comments: 0 };
   }
 
   // Get comment count
@@ -289,6 +295,6 @@ export async function getwolfpack_poststats(postId: string): Promise<{
   return {
     views: post.view_count || 0,
     likes: post.like_count || 0,
-    comments: commentCount || 0,
+    wolfpack_comments: commentCount || 0,
   };
 }

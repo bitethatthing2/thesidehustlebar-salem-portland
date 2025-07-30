@@ -1,12 +1,12 @@
 /**
  * Optimistic Actions Hook
- * Handles optimistic updates for likes, comments, follows without waiting for server response
+ * Handles optimistic updates for likes, wolfpack_comments, follows without waiting for server response
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
-import { toast } from '@/components/ui/use-toast';
-import WolfpackOfflineManager from '@/lib/utils/wolfpack-offline-manager';
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "@/components/ui/use-toast";
+import WolfpackOfflineManager from "@/lib/utils/wolfpack-offline-manager";
 
 interface OptimisticState {
   likes: Record<string, boolean>; // videoId -> isLiked
@@ -19,12 +19,15 @@ interface OptimisticState {
 
 interface UseOptimisticActionsProps {
   userId?: string; // This should be the public user ID (database ID), not auth ID
-  onUpdateVideoStats?: (videoId: string, updates: { likes_count?: number; comments_count?: number }) => void;
+  onUpdatewolfpack_videostats?: (
+    videoId: string,
+    updates: { likes_count?: number; wolfpack_comments_count?: number },
+  ) => void;
 }
 
-export function useOptimisticActions({ 
-  userId, 
-  onUpdateVideoStats 
+export function useOptimisticActions({
+  userId,
+  onUpdatewolfpack_videostats,
 }: UseOptimisticActionsProps = {}) {
   const [optimisticState, setOptimisticState] = useState<OptimisticState>({
     likes: {},
@@ -32,28 +35,28 @@ export function useOptimisticActions({
     localLikeCounts: {},
     localCommentCounts: {},
     pendingActions: {},
-    offlineActions: {}
+    offlineActions: {},
   });
 
   // Listen for offline sync events
   useEffect(() => {
     const handleSyncCompleted = (event: CustomEvent) => {
       // Remove completed actions from pending state
-      setOptimisticState(prev => {
+      setOptimisticState((prev) => {
         const newPendingActions = { ...prev.pendingActions };
         const newOfflineActions = { ...prev.offlineActions };
-        
+
         if (event.detail?.syncedActions) {
           event.detail.syncedActions.forEach((actionId: string) => {
             delete newPendingActions[actionId];
             delete newOfflineActions[actionId];
           });
         }
-        
+
         return {
           ...prev,
           pendingActions: newPendingActions,
-          offlineActions: newOfflineActions
+          offlineActions: newOfflineActions,
         };
       });
     };
@@ -63,216 +66,253 @@ export function useOptimisticActions({
       if (event.detail?.failedActions?.length > 0) {
         toast({
           title: "Some actions failed to sync",
-          description: `${event.detail.failedActions.length} actions couldn't be synced. They'll be retried later.`,
-          variant: "destructive"
+          description:
+            `${event.detail.failedActions.length} actions couldn't be synced. They'll be retried later.`,
+          variant: "destructive",
         });
       }
     };
 
-    window.addEventListener('wolfpack-sync-completed' as any, handleSyncCompleted);
-    window.addEventListener('wolfpack-sync-failed' as any, handleSyncFailed);
+    window.addEventListener(
+      "wolfpack-sync-completed" as any,
+      handleSyncCompleted,
+    );
+    window.addEventListener("wolfpack-sync-failed" as any, handleSyncFailed);
 
     return () => {
-      window.removeEventListener('wolfpack-sync-completed' as any, handleSyncCompleted);
-      window.removeEventListener('wolfpack-sync-failed' as any, handleSyncFailed);
+      window.removeEventListener(
+        "wolfpack-sync-completed" as any,
+        handleSyncCompleted,
+      );
+      window.removeEventListener(
+        "wolfpack-sync-failed" as any,
+        handleSyncFailed,
+      );
     };
   }, []);
 
   // Optimistic like/unlike
-  const handleLike = useCallback(async (videoId: string, currentLikeCount: number, isCurrentlyLiked: boolean) => {
-    if (!userId) {
-      toast({
-        title: "Account linking required",
-        description: "Please link your account to like posts. Check the signup form below.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const newIsLiked = !isCurrentlyLiked;
-    const countChange = newIsLiked ? 1 : -1;
-    const newCount = Math.max(0, currentLikeCount + countChange);
-
-    // Optimistic update
-    setOptimisticState(prev => ({
-      ...prev,
-      likes: { ...prev.likes, [videoId]: newIsLiked },
-      localLikeCounts: { ...prev.localLikeCounts, [videoId]: countChange }
-    }));
-
-    // Update parent component immediately
-    onUpdateVideoStats?.(videoId, { likes_count: newCount });
-
-    try {
-      // userId should already be the database user ID (public user ID)
-      const userDbId = userId;
-
-      // Use offline manager to handle the action
-      const result = await WolfpackOfflineManager.executeAction({
-        type: newIsLiked ? 'wolfpack_like' : 'wolfpack_unlike',
-        videoId,
-        userId: userDbId
-      });
-
-      if (!result.success) {
-        throw new Error(result.data?.error || 'Failed to update like');
-      }
-
-      // Track offline actions for UI indicators
-      if (result.queued) {
-        const actionId = result.data?.actionId;
-        if (actionId) {
-          setOptimisticState(prev => ({
-            ...prev,
-            pendingActions: { ...prev.pendingActions, [actionId]: true },
-            offlineActions: { 
-              ...prev.offlineActions, 
-              [actionId]: { 
-                type: newIsLiked ? 'like' : 'unlike', 
-                timestamp: Date.now() 
-              }
-            }
-          }));
-        }
-
+  const handleLike = useCallback(
+    async (
+      videoId: string,
+      currentLikeCount: number,
+      isCurrentlyLiked: boolean,
+    ) => {
+      if (!userId) {
         toast({
-          title: "Action queued",
-          description: `Your ${newIsLiked ? 'like' : 'unlike'} will sync when you're back online.`,
-          variant: "default"
+          title: "Account linking required",
+          description:
+            "Please link your account to like posts. Check the signup form below.",
+          variant: "destructive",
         });
+        return;
       }
 
-      console.log(`${newIsLiked ? 'Liked' : 'Unliked'} video ${videoId}${result.queued ? ' (queued for sync)' : ''}`);
+      const newIsLiked = !isCurrentlyLiked;
+      const countChange = newIsLiked ? 1 : -1;
+      const newCount = Math.max(0, currentLikeCount + countChange);
 
-    } catch (error) {
-      console.error('Error handling like:', error);
-      
-      // Revert optimistic update
-      setOptimisticState(prev => ({
+      // Optimistic update
+      setOptimisticState((prev) => ({
         ...prev,
-        likes: { ...prev.likes, [videoId]: isCurrentlyLiked },
-        localLikeCounts: { ...prev.localLikeCounts, [videoId]: 0 }
+        likes: { ...prev.likes, [videoId]: newIsLiked },
+        localLikeCounts: { ...prev.localLikeCounts, [videoId]: countChange },
       }));
 
-      // Revert parent component
-      onUpdateVideoStats?.(videoId, { likes_count: currentLikeCount });
+      // Update parent component immediately
+      onUpdatewolfpack_videostats?.(videoId, { likes_count: newCount });
 
-      toast({
-        title: "Action failed",
-        description: "Failed to update like. Please try again.",
-        variant: "destructive"
-      });
-    }
-  }, [userId, onUpdateVideoStats]);
+      try {
+        // userId should already be the database user ID (public user ID)
+        const userDbId = userId;
+
+        // Use offline manager to handle the action
+        const result = await WolfpackOfflineManager.executeAction({
+          type: newIsLiked ? "wolfpack_like" : "wolfpack_unlike",
+          videoId,
+          userId: userDbId,
+        });
+
+        if (!result.success) {
+          throw new Error(result.data?.error || "Failed to update like");
+        }
+
+        // Track offline actions for UI indicators
+        if (result.queued) {
+          const actionId = result.data?.actionId;
+          if (actionId) {
+            setOptimisticState((prev) => ({
+              ...prev,
+              pendingActions: { ...prev.pendingActions, [actionId]: true },
+              offlineActions: {
+                ...prev.offlineActions,
+                [actionId]: {
+                  type: newIsLiked ? "like" : "unlike",
+                  timestamp: Date.now(),
+                },
+              },
+            }));
+          }
+
+          toast({
+            title: "Action queued",
+            description: `Your ${
+              newIsLiked ? "like" : "unlike"
+            } will sync when you're back online.`,
+            variant: "default",
+          });
+        }
+
+        console.log(
+          `${newIsLiked ? "Liked" : "Unliked"} video ${videoId}${
+            result.queued ? " (queued for sync)" : ""
+          }`,
+        );
+      } catch (error) {
+        console.error("Error handling like:", error);
+
+        // Revert optimistic update
+        setOptimisticState((prev) => ({
+          ...prev,
+          likes: { ...prev.likes, [videoId]: isCurrentlyLiked },
+          localLikeCounts: { ...prev.localLikeCounts, [videoId]: 0 },
+        }));
+
+        // Revert parent component
+        onUpdatewolfpack_videostats?.(videoId, {
+          likes_count: currentLikeCount,
+        });
+
+        toast({
+          title: "Action failed",
+          description: "Failed to update like. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [userId, onUpdatewolfpack_videostats],
+  );
 
   // Optimistic follow/unfollow
-  const handleFollow = useCallback(async (targetUserId: string, isCurrentlyFollowed: boolean) => {
-    if (!userId) {
-      toast({
-        title: "Account linking required", 
-        description: "Please link your account to follow users. Check the signup form below.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const newIsFollowed = !isCurrentlyFollowed;
-
-    // Optimistic update
-    setOptimisticState(prev => ({
-      ...prev,
-      follows: { ...prev.follows, [targetUserId]: newIsFollowed }
-    }));
-
-    try {
-      // userId should already be the database user ID (public user ID)
-      const userDbId = userId;
-
-      // Use offline manager to handle the action
-      const result = await WolfpackOfflineManager.executeAction({
-        type: newIsFollowed ? 'wolfpack_follow' : 'wolfpack_unfollow',
-        userId: userDbId,
-        targetUserId
-      });
-
-      if (!result.success) {
-        throw new Error(result.data?.error || 'Failed to update follow status');
+  const handleFollow = useCallback(
+    async (targetUserId: string, isCurrentlyFollowed: boolean) => {
+      if (!userId) {
+        toast({
+          title: "Account linking required",
+          description:
+            "Please link your account to follow users. Check the signup form below.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      // Track offline actions for UI indicators
-      if (result.queued) {
-        const actionId = result.data?.actionId;
-        if (actionId) {
-          setOptimisticState(prev => ({
-            ...prev,
-            pendingActions: { ...prev.pendingActions, [actionId]: true },
-            offlineActions: { 
-              ...prev.offlineActions, 
-              [actionId]: { 
-                type: newIsFollowed ? 'follow' : 'unfollow', 
-                timestamp: Date.now() 
-              }
-            }
-          }));
-        }
+      const newIsFollowed = !isCurrentlyFollowed;
 
-        toast({
-          title: "Action queued",
-          description: `Your ${newIsFollowed ? 'follow' : 'unfollow'} will sync when you're back online.`,
-          variant: "default"
-        });
-      } else {
-        toast({
-          title: newIsFollowed ? "Following" : "Unfollowed",
-          description: newIsFollowed ? "You are now following this user" : "You unfollowed this user"
-        });
-      }
-
-    } catch (error) {
-      console.error('Error handling follow:', error);
-      
-      // Revert optimistic update
-      setOptimisticState(prev => ({
+      // Optimistic update
+      setOptimisticState((prev) => ({
         ...prev,
-        follows: { ...prev.follows, [targetUserId]: isCurrentlyFollowed }
+        follows: { ...prev.follows, [targetUserId]: newIsFollowed },
       }));
 
-      toast({
-        title: "Action failed",
-        description: "Failed to update follow status. Please try again.",
-        variant: "destructive"
-      });
-    }
-  }, [userId]);
+      try {
+        // userId should already be the database user ID (public user ID)
+        const userDbId = userId;
+
+        // Use offline manager to handle the action
+        const result = await WolfpackOfflineManager.executeAction({
+          type: newIsFollowed ? "wolfpack_follow" : "wolfpack_unfollow",
+          userId: userDbId,
+          targetUserId,
+        });
+
+        if (!result.success) {
+          throw new Error(
+            result.data?.error || "Failed to update follow status",
+          );
+        }
+
+        // Track offline actions for UI indicators
+        if (result.queued) {
+          const actionId = result.data?.actionId;
+          if (actionId) {
+            setOptimisticState((prev) => ({
+              ...prev,
+              pendingActions: { ...prev.pendingActions, [actionId]: true },
+              offlineActions: {
+                ...prev.offlineActions,
+                [actionId]: {
+                  type: newIsFollowed ? "follow" : "unfollow",
+                  timestamp: Date.now(),
+                },
+              },
+            }));
+          }
+
+          toast({
+            title: "Action queued",
+            description: `Your ${
+              newIsFollowed ? "follow" : "unfollow"
+            } will sync when you're back online.`,
+            variant: "default",
+          });
+        } else {
+          toast({
+            title: newIsFollowed ? "Following" : "Unfollowed",
+            description: newIsFollowed
+              ? "You are now following this user"
+              : "You unfollowed this user",
+          });
+        }
+      } catch (error) {
+        console.error("Error handling follow:", error);
+
+        // Revert optimistic update
+        setOptimisticState((prev) => ({
+          ...prev,
+          follows: { ...prev.follows, [targetUserId]: isCurrentlyFollowed },
+        }));
+
+        toast({
+          title: "Action failed",
+          description: "Failed to update follow status. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [userId],
+  );
 
   // Handle comment creation with optimistic count update
-  const handleCommentSubmit = useCallback(async (
-    videoId: string, 
-    content: string, 
+  const handlewolfpack_commentsubmit = useCallback(async (
+    videoId: string,
+    content: string,
     currentCommentCount: number,
-    parentId?: string
+    parentId?: string,
   ) => {
     if (!userId) {
       toast({
         title: "Account linking required",
-        description: "Please link your account to comment. Check the signup form below.",
-        variant: "destructive"
+        description:
+          "Please link your account to comment. Check the signup form below.",
+        variant: "destructive",
       });
       return null;
     }
 
     // Optimistic update - increment comment count
     const newCount = currentCommentCount + 1;
-    setOptimisticState(prev => ({
+    setOptimisticState((prev) => ({
       ...prev,
-      localCommentCounts: { 
-        ...prev.localCommentCounts, 
-        [videoId]: (prev.localCommentCounts[videoId] || 0) + 1 
-      }
+      localCommentCounts: {
+        ...prev.localCommentCounts,
+        [videoId]: (prev.localCommentCounts[videoId] || 0) + 1,
+      },
     }));
 
     // Update parent component immediately
-    onUpdateVideoStats?.(videoId, { comments_count: newCount });
+    onUpdatewolfpack_videostats?.(videoId, {
+      wolfpack_comments_count: newCount,
+    });
 
     try {
       // userId should already be the database user ID (public user ID)
@@ -280,38 +320,38 @@ export function useOptimisticActions({
 
       // Use offline manager to handle the action
       const result = await WolfpackOfflineManager.executeAction({
-        type: 'wolfpack_comment',
+        type: "wolfpack_comment",
         videoId,
         userId: userDbId,
         content: content.trim(),
-        parentId: parentId || undefined
+        parentId: parentId || undefined,
       });
 
       if (!result.success) {
-        throw new Error(result.data?.error || 'Failed to add comment');
+        throw new Error(result.data?.error || "Failed to add comment");
       }
 
       // Track offline actions for UI indicators
       if (result.queued) {
         const actionId = result.data?.actionId;
         if (actionId) {
-          setOptimisticState(prev => ({
+          setOptimisticState((prev) => ({
             ...prev,
             pendingActions: { ...prev.pendingActions, [actionId]: true },
-            offlineActions: { 
-              ...prev.offlineActions, 
-              [actionId]: { 
-                type: 'comment', 
-                timestamp: Date.now() 
-              }
-            }
+            offlineActions: {
+              ...prev.offlineActions,
+              [actionId]: {
+                type: "comment",
+                timestamp: Date.now(),
+              },
+            },
           }));
         }
 
         toast({
           title: "Comment queued",
           description: "Your comment will be posted when you're back online.",
-          variant: "default"
+          variant: "default",
         });
 
         // Return a temporary comment object for offline display
@@ -320,53 +360,65 @@ export function useOptimisticActions({
           content: content.trim(),
           created_at: new Date().toISOString(),
           user: {
-            first_name: 'You',
-            last_name: '',
-            display_name: 'You (offline)',
-            avatar_url: null
+            first_name: "You",
+            last_name: "",
+            display_name: "You (offline)",
+            avatar_url: null,
           },
-          pending: true
+          pending: true,
         };
       }
 
       return result.data?.data || result.data;
-
     } catch (error) {
-      console.error('Error creating comment:', error);
-      
+      console.error("Error creating comment:", error);
+
       // Revert optimistic update
-      setOptimisticState(prev => ({
+      setOptimisticState((prev) => ({
         ...prev,
-        localCommentCounts: { 
-          ...prev.localCommentCounts, 
-          [videoId]: (prev.localCommentCounts[videoId] || 1) - 1 
-        }
+        localCommentCounts: {
+          ...prev.localCommentCounts,
+          [videoId]: (prev.localCommentCounts[videoId] || 1) - 1,
+        },
       }));
 
       // Revert parent component
-      onUpdateVideoStats?.(videoId, { comments_count: currentCommentCount });
+      onUpdatewolfpack_videostats?.(videoId, {
+        wolfpack_comments_count: currentCommentCount,
+      });
 
       toast({
         title: "Comment failed",
         description: "Failed to post comment. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
 
       return null;
     }
-  }, [userId, onUpdateVideoStats]);
+  }, [userId, onUpdatewolfpack_videostats]);
 
   // Get optimistic state for a video
-  const getOptimisticVideoState = useCallback((videoId: string, originalLikeCount: number, originalCommentCount: number) => {
-    const likeAdjustment = optimisticState.localLikeCounts[videoId] || 0;
-    const commentAdjustment = optimisticState.localCommentCounts[videoId] || 0;
-    
-    return {
-      isLiked: optimisticState.likes[videoId],
-      likes_count: Math.max(0, originalLikeCount + likeAdjustment),
-      comments_count: Math.max(0, originalCommentCount + commentAdjustment)
-    };
-  }, [optimisticState]);
+  const getOptimisticwolfpack_videostate = useCallback(
+    (
+      videoId: string,
+      originalLikeCount: number,
+      originalCommentCount: number,
+    ) => {
+      const likeAdjustment = optimisticState.localLikeCounts[videoId] || 0;
+      const commentAdjustment = optimisticState.localCommentCounts[videoId] ||
+        0;
+
+      return {
+        isLiked: optimisticState.likes[videoId],
+        likes_count: Math.max(0, originalLikeCount + likeAdjustment),
+        wolfpack_comments_count: Math.max(
+          0,
+          originalCommentCount + commentAdjustment,
+        ),
+      };
+    },
+    [optimisticState],
+  );
 
   // Get optimistic follow state
   const getOptimisticFollowState = useCallback((userId: string) => {
@@ -381,23 +433,25 @@ export function useOptimisticActions({
       localLikeCounts: {},
       localCommentCounts: {},
       pendingActions: {},
-      offlineActions: {}
+      offlineActions: {},
     });
   }, []);
 
   // Get offline action status
   const getOfflineStatus = useCallback(() => {
     const pendingCount = Object.keys(optimisticState.pendingActions).length;
-    const actions = Object.entries(optimisticState.offlineActions).map(([id, action]) => ({
+    const actions = Object.entries(optimisticState.offlineActions).map((
+      [id, action],
+    ) => ({
       id,
-      ...action
+      ...action,
     }));
-    
+
     return {
       hasPendingActions: pendingCount > 0,
       pendingCount,
       actions,
-      isOnline: navigator.onLine
+      isOnline: navigator.onLine,
     };
   }, [optimisticState.pendingActions, optimisticState.offlineActions]);
 
@@ -405,30 +459,32 @@ export function useOptimisticActions({
   const forceSyncActions = useCallback(async () => {
     try {
       const result = await WolfpackOfflineManager.forceSyncNow();
-      
+
       if (result.success) {
         toast({
           title: "Sync completed",
           description: `Synced ${result.synced} actions successfully.`,
-          variant: "default"
+          variant: "default",
         });
       } else if (result.failed > 0) {
         toast({
           title: "Sync partially failed",
-          description: `Synced ${result.synced} actions, ${result.failed} failed.`,
-          variant: "destructive"
+          description:
+            `Synced ${result.synced} actions, ${result.failed} failed.`,
+          variant: "destructive",
         });
       }
 
       return result;
     } catch (error) {
-      console.error('Error forcing sync:', error);
+      console.error("Error forcing sync:", error);
       toast({
         title: "Sync failed",
-        description: "Failed to sync pending actions. Will retry automatically.",
-        variant: "destructive"
+        description:
+          "Failed to sync pending actions. Will retry automatically.",
+        variant: "destructive",
       });
-      
+
       return { success: false, synced: 0, failed: 0 };
     }
   }, []);
@@ -436,11 +492,11 @@ export function useOptimisticActions({
   return {
     handleLike,
     handleFollow,
-    handleCommentSubmit,
-    getOptimisticVideoState,
+    handlewolfpack_commentsubmit,
+    getOptimisticwolfpack_videostate,
     getOptimisticFollowState,
     clearOptimisticState,
     getOfflineStatus,
-    forceSyncActions
+    forceSyncActions,
   };
 }

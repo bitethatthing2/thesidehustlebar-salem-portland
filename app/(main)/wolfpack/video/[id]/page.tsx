@@ -76,7 +76,7 @@ export default function VideoDetailPage() {
 
   const handleLike = async () => {
     if (!user) {
-      alert('Please log in to like videos');
+      alert('Please log in to like wolfpack_videos');
       return;
     }
 
@@ -115,7 +115,7 @@ export default function VideoDetailPage() {
       // Update video comment count
       setVideo(prev => prev ? {
         ...prev,
-        comments_count: (prev.comments_count || 0) + 1,
+        wolfpack_comments_count: (prev.wolfpack_comments_count || 0) + 1,
         comment_count: (prev.comment_count || 0) + 1
       } : null);
     }
@@ -178,7 +178,7 @@ export default function VideoDetailPage() {
           )}
         </div>
 
-        {/* Comments Section */}
+        {/* wolfpack_comments Section */}
         <div className="w-full lg:w-96 border-l border-gray-800 flex flex-col">
           {/* Video Info */}
           <div className="p-4 border-b border-gray-800">
@@ -219,12 +219,12 @@ export default function VideoDetailPage() {
               
               <div className="flex items-center gap-2 text-gray-400">
                 <MessageCircle className="h-4 w-4" />
-                <span className="text-sm">{video.comments_count || video.comment_count || 0}</span>
+                <span className="text-sm">{video.wolfpack_comments_count || video.comment_count || 0}</span>
               </div>
             </div>
           </div>
 
-          {/* Comments List */}
+          {/* wolfpack_comments List */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {commentsLoading ? (
               <div className="flex justify-center">

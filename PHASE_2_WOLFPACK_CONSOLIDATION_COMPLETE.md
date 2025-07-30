@@ -8,7 +8,7 @@ Successfully consolidated the fragmented Wolfpack service architecture into a un
 
 ### 1. **Identified and Fixed Critical N+1 Query Problem** 🚨➡️✅
 - **Issue Found**: 972+ calls to `wolfpack_post_likes`, 949+ calls for likes data, 843+ calls to `wolfpack_comments`
-- **Root Cause**: Feed was loading posts first, then making separate queries for each post's likes, comments, and follow status
+- **Root Cause**: Feed was loading posts first, then making separate queries for each post's likes, wolfpack_comments, and follow status
 - **Solution**: Implemented batch queries that fetch all data in 3 queries instead of 1000+
 
 ### 2. **Created Unified Service Architecture** 🏗️
@@ -61,7 +61,7 @@ const backend = WolfpackService.backend; // Still works
 SELECT * FROM wolfpack_videos LIMIT 20;
 -- Then for each post:
 SELECT COUNT(*) FROM wolfpack_post_likes WHERE video_id = ?;
-SELECT COUNT(*) FROM wolfpack_comments WHERE video_id = ?;  
+SELECT COUNT(*) FROM wolfpack_commentsWHERE video_id = ?;  
 SELECT * FROM wolfpack_follows WHERE follower_id = ? AND following_id = ?;
 ```
 

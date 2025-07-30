@@ -79,8 +79,8 @@ USING (
 -- ===================================
 
 -- Drop duplicate policies
-DROP POLICY IF EXISTS "anyone_can_view_active_videos" ON wolfpack_videos;
-DROP POLICY IF EXISTS "wolfpack_members_view_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "anyone_can_view_active_wolfpack_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "wolfpack_members_view_wolfpack_videos" ON wolfpack_videos;
 
 -- Create single consolidated policy
 CREATE POLICY "wolfpack_videos_select_consolidated" ON wolfpack_videos
@@ -111,8 +111,8 @@ CREATE INDEX IF NOT EXISTS idx_food_drink_items_available ON food_drink_items(is
 CREATE INDEX IF NOT EXISTS idx_wolfpack_videos_active_published ON wolfpack_videos(is_active, is_published);
 CREATE INDEX IF NOT EXISTS idx_wolfpack_post_likes_user_id ON wolfpack_post_likes(user_id);
 
--- Add comments for documentation
+-- Add wolfpack_comments for documentation
 COMMENT ON POLICY "wolfpack_post_likes_select_consolidated" ON wolfpack_post_likes IS 'Consolidated policy for viewing likes - allows all users to see public like counts';
 COMMENT ON POLICY "food_drink_categories_select_consolidated" ON food_drink_categories IS 'Consolidated policy - public sees active categories, staff sees all';
 COMMENT ON POLICY "food_drink_items_select_consolidated" ON food_drink_items IS 'Consolidated policy - public sees available items, staff sees all';
-COMMENT ON POLICY "wolfpack_videos_select_consolidated" ON wolfpack_videos IS 'Consolidated policy - active published videos visible to all, owners and admins see their own';
+COMMENT ON POLICY "wolfpack_videos_select_consolidated" ON wolfpack_videos IS 'Consolidated policy - active published wolfpack_videos visible to all, owners and admins see their own';

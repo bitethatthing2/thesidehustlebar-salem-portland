@@ -3,7 +3,7 @@
 ## Overview
 This implementation provides a seamless user experience where:
 - ✅ **Anyone can view** the feed without logging in
-- ✅ **Video stats** (views, likes, comments) are visible to all
+- ✅ **Video stats** (views, likes, wolfpack_comments) are visible to all
 - ✅ **User profiles** show basic info publicly
 - 🔒 **Liking** requires authentication
 - 🔒 **Commenting** requires authentication  

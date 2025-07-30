@@ -17,7 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_users_auth_id_active
 ON users(auth_id) 
 WHERE is_active = true;
 
--- Partial index for active wolfpack videos by location
+-- Partial index for active wolfpack wolfpack_videos by location
 CREATE INDEX IF NOT EXISTS idx_wolfpack_videos_active_location_date 
 ON wolfpack_videos(location_tag, created_at DESC, user_id) 
 WHERE is_active = true;

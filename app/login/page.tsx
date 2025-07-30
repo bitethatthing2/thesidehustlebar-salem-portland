@@ -113,12 +113,24 @@ export default function UnifiedLoginPage() {
         // Sign in flow
         console.log('Attempting sign in with email:', email);
         
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
-          password,
-        });
-
+        let data, error;
+        try {
+          const response = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password,
+          });
+          data = response.data;
+          error = response.error;
+          console.log('Sign in response received:', { data: !!data, error: !!error });
+        } catch (authException) {
+          console.error('Sign in exception caught:', authException);
+          setError('Authentication service unavailable. Please try again.');
+          setIsLoading(false);
+          return;
+        }
+        
         if (error) {
+          console.error('Sign in error details:', error);
           // Use enhanced error logging
           logAuthError(error, 'Sign In');
           

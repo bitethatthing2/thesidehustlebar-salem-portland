@@ -1,5 +1,5 @@
 -- Add DELETE policy for wolfpack_videos table
-CREATE POLICY "Users can delete their own wolfpack videos"
+CREATE POLICY "Users can delete their own wolfpack wolfpack_videos"
     ON "public"."wolfpack_videos"
     FOR DELETE
     TO public

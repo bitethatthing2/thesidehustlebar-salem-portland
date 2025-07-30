@@ -20,7 +20,7 @@ interface VideoItem {
   video_url: string | null; // Can be null for image wolfpack_posts
   thumbnail_url?: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   music_name?: string;
   hashtags?: string[];
@@ -28,7 +28,7 @@ interface VideoItem {
 }
 
 interface TikTokStyleFeedProps {
-  videos: VideoItem[];
+  wolfpack_videos: VideoItem[];
   currentUser: any;
   onLike: (videoId: string) => void;
   onComment: (videoId: string) => void;
@@ -43,7 +43,7 @@ interface TikTokStyleFeedProps {
 }
 
 export default function TikTokStyleFeed({
-  videos,
+  wolfpack_videos,
   currentUser,
   onLike,
   onComment,
@@ -57,7 +57,7 @@ export default function TikTokStyleFeed({
   userLikes
 }: TikTokStyleFeedProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { currentUser: loggedInUser, authUser, isAuthenticated } = useAuth
   const [currentIndex, setCurrentIndex] = useState(0);
   const [muted, setMuted] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
@@ -84,14 +84,14 @@ export default function TikTokStyleFeed({
     };
   }, [userInteracted]);
   const [liked, setLiked] = useState<Set<string>>(new Set());
-  const [showComments, setShowComments] = useState(false);
-  const [videoStats, setVideoStats] = useState<Map<string, { likes_count: number; comments_count: number; user_liked: boolean }>>(new Map());
+  const [showwolfpack_comments, setShowwolfpack_comments] = useState(false);
+  const [wolfpack_videostats, setwolfpack_videostats] = useState<Map<string, { likes_count: number; wolfpack_comments_count: number; user_liked: boolean }>>(new Map());
   const [followingStatus, setFollowingStatus] = useState<Map<string, boolean>>(new Map());
   const [currentCommentVideo, setCurrentCommentVideo] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState('For You');
   const [showFriendSearch, setShowFriendSearch] = useState(false);
   const [videoErrors, setVideoErrors] = useState<Set<string>>(new Set());
-  const [loadedVideos, setLoadedVideos] = useState<VideoItem[]>(videos);
+  const [loadedwolfpack_videos, setLoadedwolfpack_videos] = useState<VideoItem[]>(wolfpack_videos);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -100,21 +100,21 @@ export default function TikTokStyleFeed({
   const observerRef = useRef<IntersectionObserver | null>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // Update loaded videos when prop changes
+  // Update loaded wolfpack_videos when prop changes
   useEffect(() => {
-    setLoadedVideos(videos);
-  }, [videos]);
+    setLoadedwolfpack_videos(wolfpack_videos);
+  }, [wolfpack_videos]);
 
-  // Load initial stats for videos - don't block rendering if this fails
+  // Load initial stats for wolfpack_videos - don't block rendering if this fails
   useEffect(() => {
     const loadStats = async () => {
-      if (!loadedVideos?.length || !currentUser) return;
+      if (!loadedwolfpack_videos?.length || !currentUser) return;
       
       // Load stats one by one to avoid blocking on any single failure
-      for (const video of loadedVideos) {
+      for (const video of loadedwolfpack_videos) {
         try {
-          const stats = await wolfpackSocialService.getVideoStats(video.id, currentUser.id);
-          setVideoStats(prev => {
+          const stats = await wolfpackSocialService.getwolfpack_videostats(video.id, currentUser.id);
+          setwolfpack_videostats(prev => {
             const newMap = new Map(prev);
             newMap.set(video.id, stats);
             return newMap;
@@ -122,11 +122,11 @@ export default function TikTokStyleFeed({
         } catch (error) {
           console.warn(`Failed to load stats for video ${video.id}:`, error);
           // Set default stats to allow rendering
-          setVideoStats(prev => {
+          setwolfpack_videostats(prev => {
             const newMap = new Map(prev);
             newMap.set(video.id, {
               likes_count: video.likes_count || 0,
-              comments_count: video.comments_count || 0,
+              wolfpack_comments_count: video.wolfpack_comments_count || 0,
               user_liked: false
             });
             return newMap;
@@ -137,17 +137,17 @@ export default function TikTokStyleFeed({
     
     // Add a small delay to ensure component renders first
     setTimeout(loadStats, 100);
-  }, [loadedVideos, currentUser]);
+  }, [loadedwolfpack_videos, currentUser]);
 
   // Set up real-time subscriptions for the current video
   useEffect(() => {
-    if (!loadedVideos[currentIndex] || !currentUser) return;
+    if (!loadedwolfpack_videos[currentIndex] || !currentUser) return;
     
-    const currentVideo = loadedVideos[currentIndex];
-    const unsubscribe = wolfpackSocialService.subscribeToVideoStats(
+    const currentVideo = loadedwolfpack_videos[currentIndex];
+    const unsubscribe = wolfpackSocialService.subscribeTowolfpack_videostats(
       currentVideo.id,
       (stats) => {
-        setVideoStats(prev => {
+        setwolfpack_videostats(prev => {
           const newMap = new Map(prev);
           newMap.set(currentVideo.id, stats);
           return newMap;
@@ -157,7 +157,7 @@ export default function TikTokStyleFeed({
     );
     
     return unsubscribe;
-  }, [currentIndex, loadedVideos, currentUser]);
+  }, [currentIndex, loadedwolfpack_videos, currentUser]);
 
   // Cleanup subscriptions on unmount
   useEffect(() => {
@@ -175,12 +175,12 @@ export default function TikTokStyleFeed({
       if (entry.isIntersecting && hasMore && !isLoadingMore) {
         setIsLoadingMore(true);
         onLoadMore()
-          .then((newVideos) => {
-            setLoadedVideos(prev => [...prev, ...newVideos]);
+          .then((newwolfpack_videos) => {
+            setLoadedwolfpack_videos(prev => [...prev, ...newwolfpack_videos]);
             setIsLoadingMore(false);
           })
           .catch((error) => {
-            console.error('Error loading more videos:', error);
+            console.error('Error loading more wolfpack_videos:', error);
             setIsLoadingMore(false);
           });
       }
@@ -227,7 +227,7 @@ export default function TikTokStyleFeed({
       });
     }
 
-    // Pause all other videos
+    // Pause all other wolfpack_videos
     videoRefs.current.forEach((video, index) => {
       if (video && index !== currentIndex) {
         video.pause();
@@ -245,10 +245,10 @@ export default function TikTokStyleFeed({
     const containerHeight = container.clientHeight;
     const newIndex = Math.round(scrollTop / containerHeight);
 
-    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < loadedVideos.length) {
+    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < loadedwolfpack_videos.length) {
       setCurrentIndex(newIndex);
     }
-  }, [currentIndex, loadedVideos.length]);
+  }, [currentIndex, loadedwolfpack_videos.length]);
 
   // Touch handlers for swipe gestures
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -263,7 +263,7 @@ export default function TikTokStyleFeed({
     setUserInteracted(true); // Enable user interaction on touch
 
     if (Math.abs(diff) > 50) {
-      if (diff > 0 && currentIndex < loadedVideos.length - 1) {
+      if (diff > 0 && currentIndex < loadedwolfpack_videos.length - 1) {
         // Swipe up
         scrollToIndex(currentIndex + 1);
       } else if (diff < 0 && currentIndex > 0) {
@@ -384,17 +384,17 @@ export default function TikTokStyleFeed({
   // Memoize the comment count change callback to prevent infinite re-renders
   const handleCommentCountChange = useCallback((count: number) => {
     if (currentCommentVideo) {
-      setVideoStats(prev => {
+      setwolfpack_videostats(prev => {
         const newMap = new Map(prev);
-        const currentStats = newMap.get(currentCommentVideo) || { likes_count: 0, comments_count: 0, user_liked: false };
-        newMap.set(currentCommentVideo, { ...currentStats, comments_count: count });
+        const currentStats = newMap.get(currentCommentVideo) || { likes_count: 0, wolfpack_comments_count: 0, user_liked: false };
+        newMap.set(currentCommentVideo, { ...currentStats, wolfpack_comments_count: count });
         return newMap;
       });
     }
   }, [currentCommentVideo]);
 
-  // Show loading state if no videos yet
-  if (!loadedVideos || loadedVideos.length === 0) {
+  // Show loading state if no wolfpack_videos yet
+  if (!loadedwolfpack_videos || loadedwolfpack_videos.length === 0) {
     return (
       <div className="fixed inset-0 bg-black overflow-hidden flex items-center justify-center">
         <div className="text-center">
@@ -499,7 +499,7 @@ export default function TikTokStyleFeed({
           overscrollBehavior: 'contain'
         }}
       >
-        {loadedVideos.map((video, index) => (
+        {loadedwolfpack_videos.map((video, index) => (
           <div
             key={video.id}
             className="relative h-screen w-full snap-start snap-always flex items-center justify-center"
@@ -538,7 +538,7 @@ export default function TikTokStyleFeed({
                   setVideoErrors(prev => new Set(prev).add(video.id));
                 }}
                 onLoadedData={(e) => {
-                  // Remove successful videos from error set
+                  // Remove successful wolfpack_videos from error set
                   setVideoErrors(prev => {
                     const newSet = new Set(prev);
                     newSet.delete(video.id);
@@ -576,7 +576,7 @@ export default function TikTokStyleFeed({
             {/* Gradient Overlays */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
             
-            {/* Initial tap to start message - only for videos */}
+            {/* Initial tap to start message - only for wolfpack_videos */}
             {!userInteracted && index === currentIndex && video.video_url && (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="bg-black/50 backdrop-blur-sm rounded-full p-8 animate-pulse">
@@ -595,7 +595,7 @@ export default function TikTokStyleFeed({
                 >
                   @{video.username}
                 </button>
-                {video.user_id !== currentUser?.id && (
+                {video.user_id !== loggedInUser?.id && (
                   <button
                     onClick={() => handleFollowClick(video.user_id)}
                     className={cn(
@@ -651,7 +651,7 @@ export default function TikTokStyleFeed({
                 </div>
                 <span className="text-white text-xs mt-1 font-bold">
                   {(() => {
-                    const stats = videoStats.get(video.id);
+                    const stats = wolfpack_videostats.get(video.id);
                     const likeCount = stats?.likes_count ?? video.likes_count;
                     return likeCount > 999 
                       ? `${Math.floor(likeCount/1000)}K` 
@@ -670,8 +670,8 @@ export default function TikTokStyleFeed({
                 </div>
                 <span className="text-white text-xs mt-1 font-bold">
                   {(() => {
-                    const stats = videoStats.get(video.id);
-                    const commentCount = stats?.comments_count ?? video.comments_count;
+                    const stats = wolfpack_videostats.get(video.id);
+                    const commentCount = stats?.wolfpack_comments_count ?? video.wolfpack_comments_count;
                     return commentCount > 999 
                       ? `${Math.floor(commentCount/1000)}K` 
                       : commentCount;
@@ -695,7 +695,7 @@ export default function TikTokStyleFeed({
               </button>
 
               {/* Delete Button - only for current user's wolfpack_posts */}
-              {currentUser && video.user_id === currentUser.id && onDelete && (
+              {loggedInUser && video.user_id === loggedInUser.id && onDelete && (
                 <button
                   onClick={() => onDelete(video.id)}
                   className="flex flex-col items-center group"
@@ -723,7 +723,7 @@ export default function TikTokStyleFeed({
                       quality={95}
                     />
                   </div>
-                  {video.user_id !== currentUser?.id && !followingStatus.get(video.user_id) && (
+                  {video.user_id !== loggedInUser?.id && !followingStatus.get(video.user_id) && (
                     <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center border-2 border-white">
                       <Plus className="w-3 h-3 text-white" />
                     </div>
@@ -746,7 +746,7 @@ export default function TikTokStyleFeed({
 
             {/* Minimal Progress Indicators - TikTok style */}
             <div className="absolute right-4 flex flex-col gap-1" style={{ top: 'calc(env(safe-area-inset-top, 0px) + 80px)' }}>
-              {loadedVideos.map((_, idx) => (
+              {loadedwolfpack_videos.map((_, idx) => (
                 <div
                   key={idx}
                   className={cn(
@@ -807,7 +807,7 @@ export default function TikTokStyleFeed({
           </button>
           
           <button 
-            onClick={() => router.push('/wolfpack/profile')}
+            onClick={() => router.push('/profile')}
             className="flex flex-col items-center space-y-1"
           >
             <User className="w-6 h-6 text-white/70" />
@@ -817,15 +817,15 @@ export default function TikTokStyleFeed({
       </div>
 
       {/* TikTok-style Comment Overlay */}
-      {showComments && currentCommentVideo && (
+      {showwolfpack_comments && currentCommentVideo && (
         <VideoComments
           postId={currentCommentVideo}
-          isOpen={showComments}
+          isOpen={showwolfpack_comments}
           onClose={() => {
-            setShowComments(false);
+            setShowwolfpack_comments(false);
             setCurrentCommentVideo(null);
           }}
-          initialCommentCount={loadedVideos.find(v => v.id === currentCommentVideo)?.comments_count || 0}
+          initialCommentCount={loadedwolfpack_videos.find(v => v.id === currentCommentVideo)?.wolfpack_comments_count || 0}
           onCommentCountChange={handleCommentCountChange}
         />
       )}

@@ -1,6 +1,6 @@
 /**
  * Virtualized Wolf Pack Feed Component
- * High-performance virtual scrolling feed that can handle thousands of videos
+ * High-performance virtual scrolling feed that can handle thousands of wolfpack_videos
  * with smooth scrolling and minimal DOM manipulation
  */
 
@@ -15,7 +15,7 @@ interface VirtualizedFeedProps {
   className?: string;
   itemHeight?: number;
   overscan?: number; // Number of items to render outside visible area
-  onVideoSelect?: (video: OptimizedVideoItem) => void;
+  onwolfpack_videoselect?: (video: OptimizedVideoItem) => void;
   showDebugInfo?: boolean;
 }
 
@@ -23,19 +23,19 @@ export function VirtualizedFeed({
   className = '',
   itemHeight = 600, // Estimated height per video card
   overscan = 5,
-  onVideoSelect,
+  onwolfpack_videoselect,
   showDebugInfo = false
 }: VirtualizedFeedProps) {
   
   const {
-    videos,
+    wolfpack_videos,
     loading,
     loadingMore,
     error,
     hasMore,
     loadMore,
     refreshFeed,
-    updateVideoStats,
+    updatewolfpack_videostats,
     totalCount,
     cacheStats
   } = useOptimizedFeed({
@@ -53,20 +53,20 @@ export function VirtualizedFeed({
   // Calculate visible range based on scroll position
   const visibleRange = useMemo(() => {
     if (!containerHeight || !itemHeight) {
-      return { start: 0, end: Math.min(10, videos.length) };
+      return { start: 0, end: Math.min(10, wolfpack_videos.length) };
     }
 
     const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
     const visibleCount = Math.ceil(containerHeight / itemHeight);
-    const end = Math.min(videos.length, start + visibleCount + overscan * 2);
+    const end = Math.min(wolfpack_videos.length, start + visibleCount + overscan * 2);
 
     return { start, end };
-  }, [scrollTop, containerHeight, itemHeight, overscan, videos.length]);
+  }, [scrollTop, containerHeight, itemHeight, overscan, wolfpack_videos.length]);
 
-  // Get visible videos
-  const visibleVideos = useMemo(() => {
-    return videos.slice(visibleRange.start, visibleRange.end);
-  }, [videos, visibleRange.start, visibleRange.end]);
+  // Get visible wolfpack_videos
+  const visiblewolfpack_videos = useMemo(() => {
+    return wolfpack_videos.slice(visibleRange.start, visibleRange.end);
+  }, [wolfpack_videos, visibleRange.start, visibleRange.end]);
 
   // Handle scroll events with throttling
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -131,20 +131,20 @@ export function VirtualizedFeed({
   // Handle video interactions
   const handleLike = useCallback(async (videoId: string, isLiked: boolean) => {
     // Optimistic update
-    updateVideoStats(videoId, {
+    updatewolfpack_videostats(videoId, {
       is_liked: isLiked,
-      likes_count: videos.find(v => v.id === videoId)?.likes_count + (isLiked ? 1 : -1) || 0
+      likes_count: wolfpack_videos.find(v => v.id === videoId)?.likes_count + (isLiked ? 1 : -1) || 0
     });
 
     // TODO: Make API call to actually like/unlike
-  }, [updateVideoStats, videos]);
+  }, [updatewolfpack_videostats, wolfpack_videos]);
 
   const handleComment = useCallback((videoId: string) => {
-    const video = videos.find(v => v.id === videoId);
-    if (video && onVideoSelect) {
-      onVideoSelect(video);
+    const video = wolfpack_videos.find(v => v.id === videoId);
+    if (video && onwolfpack_videoselect) {
+      onwolfpack_videoselect(video);
     }
-  }, [videos, onVideoSelect]);
+  }, [wolfpack_videos, onwolfpack_videoselect]);
 
   if (loading) {
     return <FeedSkeleton />;
@@ -166,7 +166,7 @@ export function VirtualizedFeed({
     );
   }
 
-  const totalHeight = videos.length * itemHeight;
+  const totalHeight = wolfpack_videos.length * itemHeight;
   const offsetY = visibleRange.start * itemHeight;
 
   return (
@@ -174,7 +174,7 @@ export function VirtualizedFeed({
       {/* Debug Info */}
       {showDebugInfo && (
         <div className="fixed top-4 right-4 bg-black/80 text-white p-3 rounded-lg text-xs z-50">
-          <div>Videos: {videos.length}/{totalCount}</div>
+          <div>wolfpack_videos: {wolfpack_videos.length}/{totalCount}</div>
           <div>Visible: {visibleRange.start}-{visibleRange.end}</div>
           <div>Cache: {cacheStats.hits}H/{cacheStats.misses}M ({cacheStats.size})</div>
           <div>Scroll: {Math.round(scrollTop)}px</div>
@@ -207,7 +207,7 @@ export function VirtualizedFeed({
               right: 0,
             }}
           >
-            {visibleVideos.map((video, index) => (
+            {visiblewolfpack_videos.map((video, index) => (
               <div
                 key={video.id}
                 style={{
@@ -220,7 +220,7 @@ export function VirtualizedFeed({
                   onLike={handleLike}
                   onComment={handleComment}
                   lazy={true}
-                  priority={index < 3} // High priority for first 3 videos
+                  priority={index < 3} // High priority for first 3 wolfpack_videos
                 />
               </div>
             ))}
@@ -231,12 +231,12 @@ export function VirtualizedFeed({
         {loadingMore && (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
-            <span className="ml-3 text-gray-400">Loading more videos...</span>
+            <span className="ml-3 text-gray-400">Loading more wolfpack_videos...</span>
           </div>
         )}
 
         {/* End of Feed */}
-        {!hasMore && videos.length > 0 && (
+        {!hasMore && wolfpack_videos.length > 0 && (
           <div className="text-center py-8 text-gray-500">
             <div className="text-4xl mb-2">🐺</div>
             <p>You've reached the end of the pack!</p>
@@ -250,10 +250,10 @@ export function VirtualizedFeed({
         )}
 
         {/* Empty State */}
-        {!loading && videos.length === 0 && (
+        {!loading && wolfpack_videos.length === 0 && (
           <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
             <div className="text-6xl mb-4">🐺</div>
-            <h2 className="text-xl font-bold text-white mb-2">No Videos Yet</h2>
+            <h2 className="text-xl font-bold text-white mb-2">No wolfpack_videos Yet</h2>
             <p className="text-gray-400 text-center mb-4">
               Be the first to share something with the Wolf Pack!
             </p>

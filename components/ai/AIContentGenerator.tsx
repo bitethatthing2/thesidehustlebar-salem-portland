@@ -252,7 +252,7 @@ export default function AIContentGenerator({
         media_url: mediaUrl,
         created_at: new Date().toISOString(),
         likes_count: 0,
-        comments_count: 0,
+        wolfpack_comments_count: 0,
         shares_count: 0,
         reactions: [],
         ai_metadata: {

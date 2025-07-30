@@ -20,7 +20,7 @@ interface ContentItem {
   media_url?: string;
   created_at: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   is_live?: boolean;
   event_data?: {

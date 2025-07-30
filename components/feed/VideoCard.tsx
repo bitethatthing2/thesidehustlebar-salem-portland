@@ -291,7 +291,7 @@ export const VideoCard = memo(function VideoCard({
           >
             <MessageCircle className="w-6 h-6" />
             <span className="text-sm font-medium">
-              {formatCount(video.comments_count)}
+              {formatCount(video.wolfpack_comments_count)}
             </span>
           </button>
 

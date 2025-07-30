@@ -18,8 +18,8 @@ WHERE video_url LIKE '%placeholder%'
 -- Also remove any records that have broken storage URLs
 UPDATE "public"."wolfpack_videos" 
 SET video_url = NULL, thumbnail_url = NULL 
-WHERE video_url LIKE '%/storage/v1/object/public/videos/placeholder%'
-   OR thumbnail_url LIKE '%/storage/v1/object/public/videos/placeholder%';
+WHERE video_url LIKE '%/storage/v1/object/public/wolfpack_videos/placeholder%'
+   OR thumbnail_url LIKE '%/storage/v1/object/public/wolfpack_videos/placeholder%';
 
 -- Delete any completely empty records (no video, no thumbnail, no title)
 DELETE FROM "public"."wolfpack_videos" 

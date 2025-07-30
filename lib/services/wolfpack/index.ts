@@ -31,12 +31,6 @@ export type {
   SubscriptionOptions,
 } from "./types";
 
-export type {
-  ErrorResponse,
-  ServiceResponse,
-  SuccessResponse,
-  WolfpackError,
-} from "./errors";
 
 // Export constants
 export {

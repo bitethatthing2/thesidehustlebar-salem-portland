@@ -2,27 +2,27 @@
 
 import { createContext, useContext, useState, ReactNode } from 'react';
 
-interface CommentsContextType {
-  isCommentsOpen: boolean;
-  setIsCommentsOpen: (open: boolean) => void;
+interface wolfpack_commentsContextType {
+  iswolfpack_commentsOpen: boolean;
+  setIswolfpack_commentsOpen: (open: boolean) => void;
 }
 
-const CommentsContext = createContext<CommentsContextType | undefined>(undefined);
+const wolfpack_commentsContext = createContext<wolfpack_commentsContextType | undefined>(undefined);
 
-export function CommentsProvider({ children }: { children: ReactNode }) {
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+export function wolfpack_commentsProvider({ children }: { children: ReactNode }) {
+  const [iswolfpack_commentsOpen, setIswolfpack_commentsOpen] = useState(false);
 
   return (
-    <CommentsContext.Provider value={{ isCommentsOpen, setIsCommentsOpen }}>
+    <wolfpack_commentsContext.Provider value={{ iswolfpack_commentsOpen, setIswolfpack_commentsOpen }}>
       {children}
-    </CommentsContext.Provider>
+    </wolfpack_commentsContext.Provider>
   );
 }
 
-export function useComments() {
-  const context = useContext(CommentsContext);
+export function usewolfpack_comments() {
+  const context = useContext(wolfpack_commentsContext);
   if (context === undefined) {
-    throw new Error('useComments must be used within a CommentsProvider');
+    throw new Error('usewolfpack_comments must be used within a wolfpack_commentsProvider');
   }
   return context;
 }

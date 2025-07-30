@@ -109,7 +109,7 @@ type VideoUpdate = Database['public']['Tables']['wolfpack_videos']['Update']
 ```
 
 ### Current Usage Locations
-- ✅ `hooks/useUser.ts` - User types
+- ✅ `hooks/useAuth.ts` - User types
 - ✅ `hooks/useDJPermissions.ts` - DJ types
 - ✅ `components/wolfpack/WolfpackMembersList.tsx` - User/Event types
 - ✅ `lib/menu-data.ts` - Menu types

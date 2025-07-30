@@ -4,9 +4,9 @@
  * caching, prefetching, and efficient updates
  */
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { supabase } from '@/lib/supabase/client';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase/client";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export interface OptimizedVideoItem {
   id: string;
@@ -17,7 +17,7 @@ export interface OptimizedVideoItem {
   video_url: string | null;
   thumbnail_url?: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   view_count: number;
   created_at: string;
   title?: string;
@@ -49,14 +49,17 @@ interface UseOptimizedFeedProps {
 }
 
 interface UseOptimizedFeedReturn {
-  videos: OptimizedVideoItem[];
+  wolfpack_videos: OptimizedVideoItem[];
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
   hasMore: boolean;
   loadMore: () => Promise<void>;
   refreshFeed: () => Promise<void>;
-  updateVideoStats: (videoId: string, updates: Partial<OptimizedVideoItem>) => void;
+  updatewolfpack_videostats: (
+    videoId: string,
+    updates: Partial<OptimizedVideoItem>,
+  ) => void;
   getVisibleRange: () => { start: number; end: number };
   totalCount: number;
   cacheStats: { hits: number; misses: number; size: number };
@@ -85,10 +88,10 @@ class FeedCacheManager {
     }
 
     // Update access order
-    this.accessOrder = this.accessOrder.filter(k => k !== key);
+    this.accessOrder = this.accessOrder.filter((k) => k !== key);
     this.accessOrder.push(key);
     this.hits++;
-    
+
     return cached.data;
   }
 
@@ -104,17 +107,17 @@ class FeedCacheManager {
     this.cache[key] = {
       data,
       timestamp: Date.now(),
-      cursor
+      cursor,
     };
 
     // Update access order
-    this.accessOrder = this.accessOrder.filter(k => k !== key);
+    this.accessOrder = this.accessOrder.filter((k) => k !== key);
     this.accessOrder.push(key);
   }
 
   delete(key: string): void {
     delete this.cache[key];
-    this.accessOrder = this.accessOrder.filter(k => k !== key);
+    this.accessOrder = this.accessOrder.filter((k) => k !== key);
   }
 
   clear(): void {
@@ -128,7 +131,7 @@ class FeedCacheManager {
     return {
       hits: this.hits,
       misses: this.misses,
-      size: Object.keys(this.cache).length
+      size: Object.keys(this.cache).length,
     };
   }
 }
@@ -140,42 +143,45 @@ export function useOptimizedFeed({
   pageSize = 20,
   cacheTimeout = 5 * 60 * 1000, // 5 minutes
   prefetchPages = 2,
-  enableVirtualization = true
+  enableVirtualization = true,
 }: UseOptimizedFeedProps = {}): UseOptimizedFeedReturn {
-  
-  const [videos, setVideos] = useState<OptimizedVideoItem[]>([]);
+  const [wolfpack_videos, setwolfpack_videos] = useState<OptimizedVideoItem[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(0);
-  
+
   const channelRef = useRef<RealtimeChannel | null>(null);
   const mountedRef = useRef(true);
   const visibleRangeRef = useRef({ start: 0, end: pageSize });
   const prefetchTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Optimized feed fetch with caching
-  const fetchFeedPage = useCallback(async (page: number, append = false): Promise<OptimizedVideoItem[]> => {
-    const cacheKey = `feed-page-${page}`;
-    
-    // Try cache first
-    const cached = feedCache.get(cacheKey, cacheTimeout);
-    if (cached && !append) {
-      console.log(`[FEED] Cache hit for page ${page}`);
-      return cached;
-    }
+  const fetchFeedPage = useCallback(
+    async (page: number, append = false): Promise<OptimizedVideoItem[]> => {
+      const cacheKey = `feed-page-${page}`;
 
-    console.log(`[FEED] Cache miss - fetching page ${page}`);
-    
-    try {
-      const offset = page * pageSize;
-      
-      // Optimized query with selective fields and proper joins
-      const { data, error, count } = await supabase
-        .from('wolfpack_videos')
-        .select(`
+      // Try cache first
+      const cached = feedCache.get(cacheKey, cacheTimeout);
+      if (cached && !append) {
+        console.log(`[FEED] Cache hit for page ${page}`);
+        return cached;
+      }
+
+      console.log(`[FEED] Cache miss - fetching page ${page}`);
+
+      try {
+        const offset = page * pageSize;
+
+        // Optimized query with selective fields and proper joins
+        const { data, error, count } = await supabase
+          .from("wolfpack_videos")
+          .select(
+            `
           id,
           user_id,
           title,
@@ -183,7 +189,7 @@ export function useOptimizedFeed({
           video_url,
           thumbnail_url,
           like_count,
-          comments_count,
+          wolfpack_comments_count,
           view_count,
           created_at,
           duration,
@@ -194,49 +200,55 @@ export function useOptimizedFeed({
             avatar_url,
             wolf_emoji
           )
-        `, { count: 'exact' })
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + pageSize - 1);
+        `,
+            { count: "exact" },
+          )
+          .eq("is_active", true)
+          .order("created_at", { ascending: false })
+          .range(offset, offset + pageSize - 1);
 
-      if (error) {
-        console.error(`[FEED] Error fetching page ${page}:`, error);
-        throw error;
+        if (error) {
+          console.error(`[FEED] Error fetching page ${page}:`, error);
+          throw error;
+        }
+
+        // Transform data
+        const transformedwolfpack_videos: OptimizedVideoItem[] = (data || [])
+          .map((item) => ({
+            id: item.id,
+            user_id: item.user_id,
+            username: item.user?.display_name || item.user?.username ||
+              "Anonymous",
+            avatar_url: item.user?.avatar_url,
+            caption: item.description || item.title || "",
+            video_url: item.video_url,
+            thumbnail_url: item.thumbnail_url,
+            likes_count: item.like_count || 0,
+            wolfpack_comments_count: item.wolfpack_comments_count || 0,
+            view_count: item.view_count || 0,
+            created_at: item.created_at,
+            title: item.title,
+            description: item.description,
+            duration: item.duration,
+            user: item.user,
+          }));
+
+        // Cache the result
+        feedCache.set(cacheKey, transformedwolfpack_videos);
+
+        // Update total count
+        if (count !== null) {
+          setTotalCount(count);
+        }
+
+        return transformedwolfpack_videos;
+      } catch (err: any) {
+        console.error(`[FEED] Error fetching page ${page}:`, err);
+        throw new Error(`Failed to fetch feed: ${err.message}`);
       }
-
-      // Transform data
-      const transformedVideos: OptimizedVideoItem[] = (data || []).map(item => ({
-        id: item.id,
-        user_id: item.user_id,
-        username: item.user?.display_name || item.user?.username || 'Anonymous',
-        avatar_url: item.user?.avatar_url,
-        caption: item.description || item.title || '',
-        video_url: item.video_url,
-        thumbnail_url: item.thumbnail_url,
-        likes_count: item.like_count || 0,
-        comments_count: item.comments_count || 0,
-        view_count: item.view_count || 0,
-        created_at: item.created_at,
-        title: item.title,
-        description: item.description,
-        duration: item.duration,
-        user: item.user
-      }));
-
-      // Cache the result
-      feedCache.set(cacheKey, transformedVideos);
-
-      // Update total count
-      if (count !== null) {
-        setTotalCount(count);
-      }
-
-      return transformedVideos;
-    } catch (err: any) {
-      console.error(`[FEED] Error fetching page ${page}:`, err);
-      throw new Error(`Failed to fetch feed: ${err.message}`);
-    }
-  }, [pageSize, cacheTimeout]);
+    },
+    [pageSize, cacheTimeout],
+  );
 
   // Prefetch upcoming pages
   const prefetchPages = useCallback(async (fromPage: number) => {
@@ -252,9 +264,13 @@ export function useOptimizedFeed({
           prefetchPromises.push(fetchFeedPage(pageToFetch));
         }
         await Promise.all(prefetchPromises);
-        console.log(`[FEED] Prefetched ${prefetchPages} pages starting from ${fromPage + 1}`);
+        console.log(
+          `[FEED] Prefetched ${prefetchPages} pages starting from ${
+            fromPage + 1
+          }`,
+        );
       } catch (error) {
-        console.warn('[FEED] Prefetch failed:', error);
+        console.warn("[FEED] Prefetch failed:", error);
       }
     }, 100); // Small delay to batch prefetch requests
   }, [fetchFeedPage, prefetchPages]);
@@ -262,20 +278,20 @@ export function useOptimizedFeed({
   // Load initial feed
   const loadInitialFeed = useCallback(async () => {
     if (!mountedRef.current) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      const initialVideos = await fetchFeedPage(0);
-      
+      const initialwolfpack_videos = await fetchFeedPage(0);
+
       if (mountedRef.current) {
-        setVideos(initialVideos);
+        setwolfpack_videos(initialwolfpack_videos);
         setCurrentPage(0);
-        setHasMore(initialVideos.length === pageSize);
-        
+        setHasMore(initialwolfpack_videos.length === pageSize);
+
         // Start prefetching
-        if (initialVideos.length > 0) {
+        if (initialwolfpack_videos.length > 0) {
           prefetchPages(0);
         }
       }
@@ -290,23 +306,23 @@ export function useOptimizedFeed({
     }
   }, [fetchFeedPage, pageSize, prefetchPages]);
 
-  // Load more videos
+  // Load more wolfpack_videos
   const loadMore = useCallback(async () => {
     if (loadingMore || !hasMore || !mountedRef.current) return;
-    
+
     setLoadingMore(true);
-    
+
     try {
       const nextPage = currentPage + 1;
-      const newVideos = await fetchFeedPage(nextPage, true);
-      
+      const newwolfpack_videos = await fetchFeedPage(nextPage, true);
+
       if (mountedRef.current) {
-        setVideos(prev => [...prev, ...newVideos]);
+        setwolfpack_videos((prev) => [...prev, ...newwolfpack_videos]);
         setCurrentPage(nextPage);
-        setHasMore(newVideos.length === pageSize);
-        
+        setHasMore(newwolfpack_videos.length === pageSize);
+
         // Continue prefetching
-        if (newVideos.length > 0) {
+        if (newwolfpack_videos.length > 0) {
           prefetchPages(nextPage);
         }
       }
@@ -319,7 +335,14 @@ export function useOptimizedFeed({
         setLoadingMore(false);
       }
     }
-  }, [currentPage, hasMore, loadingMore, fetchFeedPage, pageSize, prefetchPages]);
+  }, [
+    currentPage,
+    hasMore,
+    loadingMore,
+    fetchFeedPage,
+    pageSize,
+    prefetchPages,
+  ]);
 
   // Refresh feed (clear cache)
   const refreshFeed = useCallback(async () => {
@@ -329,11 +352,16 @@ export function useOptimizedFeed({
   }, [loadInitialFeed]);
 
   // Update video stats optimistically
-  const updateVideoStats = useCallback((videoId: string, updates: Partial<OptimizedVideoItem>) => {
-    setVideos(prev => prev.map(video => 
-      video.id === videoId ? { ...video, ...updates } : video
-    ));
-  }, []);
+  const updatewolfpack_videostats = useCallback(
+    (videoId: string, updates: Partial<OptimizedVideoItem>) => {
+      setwolfpack_videos((prev) =>
+        prev.map((video) =>
+          video.id === videoId ? { ...video, ...updates } : video
+        )
+      );
+    },
+    [],
+  );
 
   // Virtual scrolling support
   const getVisibleRange = useCallback(() => {
@@ -347,37 +375,37 @@ export function useOptimizedFeed({
     const setupRealtime = () => {
       const channel = supabase
         .channel(`optimized_feed_${Date.now()}`, {
-          config: { presence: { key: 'user_id' } }
+          config: { presence: { key: "user_id" } },
         })
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'wolfpack_videos',
-          filter: 'is_active=eq.true'
+        .on("postgres_changes", {
+          event: "INSERT",
+          schema: "public",
+          table: "wolfpack_videos",
+          filter: "is_active=eq.true",
         }, (payload) => {
-          console.log('[FEED REALTIME] New video:', payload);
+          console.log("[FEED REALTIME] New video:", payload);
           // Invalidate cache and refresh if we're at the top
           if (currentPage === 0) {
-            feedCache.delete('feed-page-0');
+            feedCache.delete("feed-page-0");
             refreshFeed();
           }
         })
-        .on('postgres_changes', {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wolfpack_videos'
+        .on("postgres_changes", {
+          event: "UPDATE",
+          schema: "public",
+          table: "wolfpack_videos",
         }, (payload) => {
-          console.log('[FEED REALTIME] Video updated:', payload);
+          console.log("[FEED REALTIME] Video updated:", payload);
           if (payload.new.id) {
-            updateVideoStats(payload.new.id, {
+            updatewolfpack_videostats(payload.new.id, {
               likes_count: payload.new.like_count,
-              comments_count: payload.new.comments_count,
-              view_count: payload.new.view_count
+              wolfpack_comments_count: payload.new.wolfpack_comments_count,
+              view_count: payload.new.view_count,
             });
           }
         })
         .subscribe((status) => {
-          console.log('[FEED REALTIME] Status:', status);
+          console.log("[FEED REALTIME] Status:", status);
         });
 
       channelRef.current = channel;
@@ -393,30 +421,30 @@ export function useOptimizedFeed({
         clearTimeout(prefetchTimeoutRef.current);
       }
     };
-  }, [currentPage, refreshFeed, updateVideoStats]);
+  }, [currentPage, refreshFeed, updatewolfpack_videostats]);
 
   // Initialize feed on mount
   useEffect(() => {
     loadInitialFeed();
-    
+
     return () => {
       mountedRef.current = false;
     };
   }, [loadInitialFeed]);
 
-  const cacheStats = useMemo(() => feedCache.getStats(), [videos]);
+  const cacheStats = useMemo(() => feedCache.getStats(), [wolfpack_videos]);
 
   return {
-    videos,
+    wolfpack_videos,
     loading,
     loadingMore,
     error,
     hasMore,
     loadMore,
     refreshFeed,
-    updateVideoStats,
+    updatewolfpack_videostats,
     getVisibleRange,
     totalCount,
-    cacheStats
+    cacheStats,
   };
 }

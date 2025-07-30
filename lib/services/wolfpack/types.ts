@@ -65,7 +65,7 @@ export interface FeedItem {
   video_url: string | null;
   thumbnail_url?: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   music_name?: string;
   hashtags?: string[];
@@ -171,8 +171,8 @@ export interface SubscriptionOptions {
 
 // Constants
 export const WOLFPACK_TABLES = {
-  VIDEOS: "wolfpack_videos",
-  COMMENTS: "wolfpack_comments",
+  wolfpack_videos: "wolfpack_videos",
+  wolfpack_comments: "wolfpack_comments",
   LIKES: "wolfpack_post_likes",
   FOLLOWS: "wolfpack_follows",
   USERS: "users",

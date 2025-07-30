@@ -22,13 +22,13 @@ export function OptimizedWolfPackFeed({
   
   const [selectedVideo, setSelectedVideo] = useState<OptimizedVideoItem | null>(null);
 
-  const handleVideoSelect = (video: OptimizedVideoItem) => {
+  const handlewolfpack_videoselect = (video: OptimizedVideoItem) => {
     setSelectedVideo(video);
     // TODO: Open video modal or navigate to video detail page
     console.log('Selected video:', video);
   };
 
-  const handleVideoShare = (videoId: string) => {
+  const handlewolfpack_videoshare = (videoId: string) => {
     // TODO: Implement sharing functionality
     console.log('Share video:', videoId);
   };
@@ -55,8 +55,8 @@ export function OptimizedWolfPackFeed({
         {/* Feed Container */}
         <div className="relative">
           <VirtualizedFeed
-            onVideoSelect={handleVideoSelect}
-            onShare={handleVideoShare}
+            onwolfpack_videoselect={handlewolfpack_videoselect}
+            onShare={handlewolfpack_videoshare}
             showDebugInfo={showDebugInfo}
             className="h-[calc(100vh-80px)]" // Account for header height
           />
@@ -108,7 +108,7 @@ function VideoDetailModal({
             
             <div className="flex items-center space-x-4 text-sm text-gray-400">
               <span>{video.likes_count} likes</span>
-              <span>{video.comments_count} comments</span>
+              <span>{video.wolfpack_comments_count} wolfpack_comments</span>
               <span>{video.view_count} views</span>
             </div>
             

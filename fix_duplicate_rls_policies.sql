@@ -105,8 +105,8 @@ WHERE schemaname = 'public' AND tablename = 'wolfpack_videos'
 ORDER BY cmd, policyname;
 
 -- Drop duplicate policies
-DROP POLICY IF EXISTS "anyone_can_view_active_videos" ON wolfpack_videos;
-DROP POLICY IF EXISTS "wolfpack_members_view_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "anyone_can_view_active_wolfpack_videos" ON wolfpack_videos;
+DROP POLICY IF EXISTS "wolfpack_members_view_wolfpack_videos" ON wolfpack_videos;
 
 -- Create single consolidated policy (keep existing good policy if it exists)
 DO $$

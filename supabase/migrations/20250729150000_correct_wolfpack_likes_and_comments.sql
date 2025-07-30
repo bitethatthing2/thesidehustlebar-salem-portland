@@ -1,9 +1,9 @@
--- Correct implementation for wolfpack likes and comments
+-- Correct implementation for wolfpack likes and wolfpack_comments
 -- This maintains the proper foreign key relationships to public.users
 
 -- Drop the incorrectly created tables from previous migrations
 DROP TABLE IF EXISTS wolfpack_likes CASCADE;
-DROP TABLE IF EXISTS wolfpack_comments CASCADE;
+DROP TABLE IF EXISTS wolfpack_commentsCASCADE;
 
 -- Create wolfpack_likes table with correct foreign keys to public.users
 CREATE TABLE wolfpack_likes (
@@ -14,8 +14,8 @@ CREATE TABLE wolfpack_likes (
   UNIQUE(user_id, video_id)
 );
 
--- Create wolfpack_comments table with correct foreign keys to public.users
-CREATE TABLE wolfpack_comments (
+-- Create wolfpack_commentstable with correct foreign keys to public.users
+CREATE TABLE wolfpack_comments(
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   video_id UUID NOT NULL REFERENCES wolfpack_videos(id) ON DELETE CASCADE,
@@ -35,7 +35,7 @@ CREATE INDEX idx_wolfpack_comments_parent_id ON wolfpack_comments(parent_id) WHE
 
 -- Enable Row Level Security
 ALTER TABLE wolfpack_likes ENABLE ROW LEVEL SECURITY;
-ALTER TABLE wolfpack_comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE wolfpack_commentsENABLE ROW LEVEL SECURITY;
 
 -- Correct RLS Policies that map auth.uid() to public.users.id
 
@@ -57,18 +57,18 @@ CREATE POLICY "Users can delete their own likes" ON wolfpack_likes
     )
   );
 
--- Comments policies
-CREATE POLICY "Users can view all non-deleted comments" ON wolfpack_comments
+-- wolfpack_comments policies
+CREATE POLICY "Users can view all non-deleted wolfpack_comments" ON wolfpack_comments
   FOR SELECT USING (NOT is_deleted);
 
-CREATE POLICY "Users can create comments" ON wolfpack_comments
+CREATE POLICY "Users can create wolfpack_comments" ON wolfpack_comments
   FOR INSERT WITH CHECK (
     user_id IN (
       SELECT id FROM public.users WHERE auth_id = auth.uid()
     ) AND NOT is_deleted
   );
 
-CREATE POLICY "Users can update their own comments" ON wolfpack_comments
+CREATE POLICY "Users can update their own wolfpack_comments" ON wolfpack_comments
   FOR UPDATE USING (
     user_id IN (
       SELECT id FROM public.users WHERE auth_id = auth.uid()
@@ -79,14 +79,14 @@ CREATE POLICY "Users can update their own comments" ON wolfpack_comments
     )
   );
 
-CREATE POLICY "Users can soft delete their own comments" ON wolfpack_comments
+CREATE POLICY "Users can soft delete their own wolfpack_comments" ON wolfpack_comments
   FOR UPDATE USING (
     user_id IN (
       SELECT id FROM public.users WHERE auth_id = auth.uid()
     )
   ) WITH CHECK (is_deleted = true);
 
--- Update trigger for comments updated_at
+-- Update trigger for wolfpack_comments updated_at
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -105,6 +105,6 @@ GRANT SELECT, INSERT, DELETE ON TABLE wolfpack_likes TO anon;
 GRANT SELECT, INSERT, DELETE ON TABLE wolfpack_likes TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE wolfpack_likes TO service_role;
 
-GRANT SELECT, INSERT, UPDATE ON TABLE wolfpack_comments TO anon;
-GRANT SELECT, INSERT, UPDATE ON TABLE wolfpack_comments TO authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE wolfpack_comments TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE wolfpack_commentsTO anon;
+GRANT SELECT, INSERT, UPDATE ON TABLE wolfpack_commentsTO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE wolfpack_commentsTO service_role;

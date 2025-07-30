@@ -1,15 +1,15 @@
 // hooks/useChat.ts
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/lib/supabase';
-import { useUser } from '@/hooks/useUser';
-import { toast } from 'sonner';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 // Import message utilities - these need to be implemented
 const validateMessage = (message: string, options: any) => {
   if (!message || message.trim().length === 0) {
-    return { isValid: false, errors: ['Message cannot be empty'] };
+    return { isValid: false, errors: ["Message cannot be empty"] };
   }
   if (message.length > (options.maxLength || 500)) {
-    return { isValid: false, errors: ['Message too long'] };
+    return { isValid: false, errors: ["Message too long"] };
   }
   return { isValid: true, sanitized: message.trim() };
 };
@@ -18,23 +18,30 @@ const formatMessageTime = (timestamp: string) => {
   return new Date(timestamp).toLocaleTimeString();
 };
 
-const groupMessages = (messages: any[], userId: string) => {
+const groupMessages = (messages: any[], currentUserId: string) => {
   return messages;
 };
 
 class TypingIndicator {
   private timers: Map<string, NodeJS.Timeout> = new Map();
-  
-  setTyping(key: string, isTyping: boolean, callback: (typing: boolean) => void) {
+
+  setTyping(
+    key: string,
+    isTyping: boolean,
+    callback: (typing: boolean) => void,
+  ) {
     if (isTyping) {
       callback(true);
       if (this.timers.has(key)) {
         clearTimeout(this.timers.get(key)!);
       }
-      this.timers.set(key, setTimeout(() => {
-        callback(false);
-        this.timers.delete(key);
-      }, 3000));
+      this.timers.set(
+        key,
+        setTimeout(() => {
+          callback(false);
+          this.timers.delete(key);
+        }, 3000),
+      );
     } else {
       callback(false);
       if (this.timers.has(key)) {
@@ -43,21 +50,21 @@ class TypingIndicator {
       }
     }
   }
-  
+
   cleanup() {
-    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.forEach((timer) => clearTimeout(timer));
     this.timers.clear();
   }
 }
 
-const checkRateLimit = (userId: string) => {
+const checkRateLimit = (currentUserId: string) => {
   return true; // Simplified implementation
 };
 
 export interface MessageReaction {
   emoji: string;
   reaction_count: number;
-  user_ids: string[];
+  currentUser_ids: string[];
 }
 
 export interface PrivateMessage {
@@ -78,7 +85,7 @@ export interface PrivateMessage {
   thread_id?: string | null;
   reply_to_message_id?: string | null;
   reactions?: MessageReaction[];
-  sender_user?: {
+  sender_currentUser?: {
     display_name: string | null;
     wolf_emoji: string | null;
     profile_image_url?: string | null;
@@ -104,10 +111,10 @@ export interface ChatUser {
 }
 
 export interface Conversation {
-  other_user_id: string;
-  other_user_display_name: string;
-  other_user_wolf_emoji: string;
-  other_user_profile_image_url: string;
+  other_currentUser_id: string;
+  other_currentUser_display_name: string;
+  other_currentUser_wolf_emoji: string;
+  other_currentUser_profile_image_url: string;
   last_message: string;
   last_message_time: string;
   unread_count: number;
@@ -115,11 +122,11 @@ export interface Conversation {
 }
 
 export enum ConnectionState {
-  CONNECTING = 'connecting',
-  CONNECTED = 'connected',
-  DISCONNECTED = 'disconnected',
-  RECONNECTING = 'reconnecting',
-  ERROR = 'error'
+  CONNECTING = "connecting",
+  CONNECTED = "connected",
+  DISCONNECTED = "disconnected",
+  RECONNECTING = "reconnecting",
+  ERROR = "error",
 }
 
 interface UseChatOptions {
@@ -131,13 +138,13 @@ interface UseChatOptions {
 }
 
 export function useChat(options: UseChatOptions = {}) {
-  const { user } = useUser();
+  const { currentUser } = useAuth();
   const {
     otherUserId,
     enableTypingIndicator = true,
     enableOptimisticUpdates = true,
     messageLimit = 100,
-    reconnectDelay = 5000
+    reconnectDelay = 5000,
   } = options;
 
   // State management
@@ -147,7 +154,9 @@ export function useChat(options: UseChatOptions = {}) {
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.DISCONNECTED);
+  const [connectionState, setConnectionState] = useState<ConnectionState>(
+    ConnectionState.DISCONNECTED,
+  );
   const [unreadCount, setUnreadCount] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,7 +181,7 @@ export function useChat(options: UseChatOptions = {}) {
 
   // Load chat data using optimized function
   const loadChatData = useCallback(async () => {
-    if (!user || !otherUserId) return;
+    if (!currentUser || !otherUserId) return;
 
     try {
       setIsLoading(true);
@@ -180,96 +189,102 @@ export function useChat(options: UseChatOptions = {}) {
 
       // Load messages with reactions using optimized query
       const { data: messagesData, error: messagesError } = await supabase
-        .from('wolf_private_messages')
+        .from("wolf_private_messages")
         .select(`
           *,
-          sender_user:sender_id(id, display_name, wolf_emoji, profile_image_url),
+          sender_currentUser:sender_id(id, display_name, wolf_emoji, profile_image_url),
           reply_to_message:reply_to_message_id(
             id,
             message,
             sender_id,
-            sender_user:sender_id(display_name)
+            sender_currentUser:sender_id(display_name)
           ),
           reactions:wolf_private_message_reaction_counts(
             emoji,
             reaction_count,
-            user_ids
+            currentUser_ids
           )
         `)
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
-        .order('created_at', { ascending: false })
+        .or(
+          `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`,
+        )
+        .order("created_at", { ascending: false })
         .limit(messageLimit || 100);
 
-      const { data: otherUserData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', otherUserId)
+      const { data: otherUserData, error: currentUserError } = await supabase
+        .from("currentUsers")
+        .select("*")
+        .eq("id", otherUserId)
         .single();
 
-      // Check if either user has blocked the other
+      // Check if either currentUser has blocked the other
       const { data: blockData, error: blockError } = await supabase
-        .from('wolf_pack_interactions')
-        .select('*')
-        .eq('interaction_type', 'block')
-        .eq('status', 'active')
-        .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`);
+        .from("wolf_pack_interactions")
+        .select("*")
+        .eq("interaction_type", "block")
+        .eq("status", "active")
+        .or(
+          `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`,
+        );
 
       if (messagesError) throw messagesError;
-      if (userError) throw userError;
+      if (currentUserError) throw currentUserError;
       if (blockError) throw blockError;
 
       if (!otherUserData) {
-        throw new Error('User not found');
+        throw new Error("User not found");
       }
 
       if (otherUserData.allow_messages === false) {
-        throw new Error('This user has disabled private messages');
+        throw new Error("This currentUser has disabled private messages");
       }
 
-      // Check if there's an active block between users
+      // Check if there's an active block between currentUsers
       const isBlocked = blockData && blockData.length > 0;
-      
+
       setOtherUser(otherUserData);
       setIsBlocked(isBlocked);
-      
+
       if (messagesData && Array.isArray(messagesData)) {
         setMessages(messagesData);
-        
+
         // Mark unread messages as read
         const unreadMessages = messagesData.filter(
-          (msg: PrivateMessage) => msg.sender_id === otherUserId && !msg.is_read
+          (msg: PrivateMessage) =>
+            msg.sender_id === otherUserId && !msg.is_read,
         );
 
         if (unreadMessages.length > 0) {
-          await markMessagesAsRead(unreadMessages.map(msg => msg.id));
+          await markMessagesAsRead(unreadMessages.map((msg) => msg.id));
         }
       }
-
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load chat';
+      const errorMessage = err instanceof Error
+        ? err.message
+        : "Failed to load chat";
       setError(errorMessage);
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, [user, otherUserId]);
+  }, [currentUser, otherUserId]);
 
   // Load conversations list
   const loadConversations = useCallback(async () => {
-    if (!user) return;
+    if (!currentUser) return;
 
     try {
-      const { data, error } = await supabase.rpc('get_recent_conversations', {
-        p_user_id: user.id,
-        p_limit: 20
+      const { data, error } = await supabase.rpc("get_recent_conversations", {
+        p_currentUser_id: currentUser.id,
+        p_limit: 20,
       });
 
       if (error) throw error;
       if (data) setConversations(data);
     } catch (err) {
-      console.error('Error loading conversations:', err);
+      console.error("Error loading conversations:", err);
     }
-  }, [user]);
+  }, [currentUser]);
 
   // Mark messages as read
   const markMessagesAsRead = useCallback(async (messageIds: string[]) => {
@@ -277,63 +292,65 @@ export function useChat(options: UseChatOptions = {}) {
 
     try {
       await supabase
-        .from('wolf_private_messages')
-        .update({ 
+        .from("wolf_private_messages")
+        .update({
           is_read: true,
-          read_at: new Date().toISOString()
+          read_at: new Date().toISOString(),
         })
-        .in('id', messageIds);
+        .in("id", messageIds);
 
       // Update local state
-      setMessages(prev => prev.map(msg => 
-        messageIds.includes(msg.id) 
-          ? { ...msg, is_read: true, read_at: new Date().toISOString() }
-          : msg
-      ));
-
+      setMessages((prev) =>
+        prev.map((msg) =>
+          messageIds.includes(msg.id)
+            ? { ...msg, is_read: true, read_at: new Date().toISOString() }
+            : msg
+        )
+      );
     } catch (error) {
-      console.error('Error marking messages as read:', error);
+      console.error("Error marking messages as read:", error);
     }
   }, []);
 
   // Setup real-time subscription
   const setupRealtimeSubscription = useCallback(() => {
-    if (!user || !otherUserId) return;
+    if (!currentUser || !otherUserId) return;
 
     cleanup();
     setConnectionState(ConnectionState.CONNECTING);
 
     const channel = supabase
-      .channel(`private_chat_${user.id}_${otherUserId}`)
+      .channel(`private_chat_${currentUser.id}_${otherUserId}`)
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'wolf_private_messages',
-          filter: `or(and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id}))`
+          event: "INSERT",
+          schema: "public",
+          table: "wolf_private_messages",
+          filter:
+            `or(and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id}))`,
         },
         async (payload) => {
           try {
             const newMsg = payload.new as PrivateMessage;
-            
+
             // Fetch sender information if missing
-            if (!newMsg.sender_user && newMsg.sender_id !== user.id) {
+            if (!newMsg.sender_currentUser && newMsg.sender_id !== currentUser.id) {
               const { data: senderData } = await supabase
-                .from('users')
-                .select('display_name, wolf_emoji, profile_image_url')
-                .eq('id', newMsg.sender_id)
+                .from("currentUsers")
+                .select("display_name, wolf_emoji, profile_image_url")
+                .eq("id", newMsg.sender_id)
                 .single();
-              
+
               if (senderData) {
-                newMsg.sender_user = senderData;
+                newMsg.sender_currentUser = senderData;
               }
             }
-            
+
             // Add message to state (prevent duplicates)
             // Since messages are now ordered newest first, add new messages to the beginning
-            setMessages(prev => {
-              if (prev.some(msg => msg.id === newMsg.id)) {
+            setMessages((prev) => {
+              if (prev.some((msg) => msg.id === newMsg.id)) {
                 return prev;
               }
               return [newMsg, ...prev];
@@ -344,78 +361,84 @@ export function useChat(options: UseChatOptions = {}) {
               if (document.hasFocus()) {
                 markMessagesAsRead([newMsg.id]);
               } else {
-                setUnreadCount(c => c + 1);
-                
+                setUnreadCount((c) => c + 1);
+
                 // Show browser notification
-                if (Notification.permission === 'granted') {
-                  new Notification(`New message from ${otherUser?.display_name || 'Someone'}`, {
-                    body: newMsg.message.slice(0, 100),
-                    icon: otherUser?.profile_image_url || '/default-avatar.png'
-                  });
+                if (Notification.permission === "granted") {
+                  new Notification(
+                    `New message from ${otherUser?.display_name || "Someone"}`,
+                    {
+                      body: newMsg.message.slice(0, 100),
+                      icon: otherUser?.profile_image_url ||
+                        "/default-avatar.png",
+                    },
+                  );
                 }
               }
             }
-            
           } catch (error) {
-            console.error('Error handling real-time message:', error);
+            console.error("Error handling real-time message:", error);
           }
-        }
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wolf_private_messages',
-          filter: `or(and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id}))`
+          event: "UPDATE",
+          schema: "public",
+          table: "wolf_private_messages",
+          filter:
+            `or(and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id}))`,
         },
         (payload) => {
           const updatedMsg = payload.new as PrivateMessage;
-          setMessages(prev => prev.map(msg => 
-            msg.id === updatedMsg.id ? { ...msg, ...updatedMsg } : msg
-          ));
-        }
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === updatedMsg.id ? { ...msg, ...updatedMsg } : msg
+            )
+          );
+        },
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'wolf_private_message_reactions'
+          event: "*",
+          schema: "public",
+          table: "wolf_private_message_reactions",
         },
         async (payload) => {
           // Reload messages to get updated reaction counts
           await loadChatData();
-        }
+        },
       )
       .subscribe((status) => {
-        console.log('Subscription status:', status);
-        
+        console.log("Subscription status:", status);
+
         switch (status) {
-          case 'SUBSCRIBED':
+          case "SUBSCRIBED":
             setConnectionState(ConnectionState.CONNECTED);
             setError(null);
             break;
-          case 'CHANNEL_ERROR':
-          case 'TIMED_OUT':
+          case "CHANNEL_ERROR":
+          case "TIMED_OUT":
             setConnectionState(ConnectionState.DISCONNECTED);
             scheduleReconnection();
             break;
-          case 'CLOSED':
+          case "CLOSED":
             setConnectionState(ConnectionState.DISCONNECTED);
             break;
         }
       });
 
     channelRef.current = channel;
-  }, [user, otherUserId, otherUser, cleanup, markMessagesAsRead]);
+  }, [currentUser, otherUserId, otherUser, cleanup, markMessagesAsRead]);
 
   // Schedule reconnection with exponential backoff
   const scheduleReconnection = useCallback(() => {
     if (retryTimeoutRef.current) return;
 
     setConnectionState(ConnectionState.RECONNECTING);
-    
+
     retryTimeoutRef.current = setTimeout(() => {
       retryTimeoutRef.current = undefined;
       setupRealtimeSubscription();
@@ -423,273 +446,291 @@ export function useChat(options: UseChatOptions = {}) {
   }, [setupRealtimeSubscription, reconnectDelay]);
 
   // Send message function (enhanced with reply support)
-  const sendMessage = useCallback(async (messageText: string, replyToMessageId?: string) => {
-    if (!user || !otherUserId || isSending) return false;
+  const sendMessage = useCallback(
+    async (messageText: string, replyToMessageId?: string) => {
+      if (!currentUser || !otherUserId || isSending) return false;
 
-    const validation = validateMessage(messageText, {
-      maxLength: 500,
-      allowLineBreaks: true,
-      trimWhitespace: true,
-      checkSpam: true,
-      checkRateLimit: true,
-      userId: user.id
-    });
+      const validation = validateMessage(messageText, {
+        maxLength: 500,
+        allowLineBreaks: true,
+        trimWhitespace: true,
+        checkSpam: true,
+        checkRateLimit: true,
+        currentUserId: currentUser.id,
+      });
 
-    if (!validation.isValid) {
-      toast.error(validation.errors[0]);
-      return false;
-    }
+      if (!validation.isValid) {
+        toast.error(validation.errors[0]);
+        return false;
+      }
 
-    try {
-      setIsSending(true);
+      try {
+        setIsSending(true);
 
-      let tempMessage: PrivateMessage | null = null;
-      
-      // Optimistic update
-      if (enableOptimisticUpdates) {
-        const tempId = `temp_${Date.now()}`;
-        tempMessage = {
-          id: tempId,
-          sender_id: user.id,
+        let tempMessage: PrivateMessage | null = null;
+
+        // Optimistic update
+        if (enableOptimisticUpdates) {
+          const tempId = `temp_${Date.now()}`;
+          tempMessage = {
+            id: tempId,
+            sender_id: currentUser.id,
+            receiver_id: otherUserId,
+            message: validation.sanitized!,
+            is_read: false,
+            created_at: new Date().toISOString(),
+            is_deleted: false,
+            flagged: false,
+            sender_currentUser: {
+              display_name: currentUser.display_name || null,
+              wolf_emoji: currentUser.wolf_emoji || null,
+              profile_image_url: currentUser.profile_image_url || null,
+            },
+          };
+
+          // Add optimistic message to the beginning since messages are ordered newest first
+          setMessages((prev) => [tempMessage!, ...prev]);
+        }
+
+        // Prepare message data
+        const messageData: any = {
+          sender_id: currentUser.id,
           receiver_id: otherUserId,
           message: validation.sanitized!,
           is_read: false,
-          created_at: new Date().toISOString(),
           is_deleted: false,
           flagged: false,
-          sender_user: {
-            display_name: user.display_name || null,
-            wolf_emoji: user.wolf_emoji || null,
-            profile_image_url: user.profile_image_url || null
-          }
+          created_at: new Date().toISOString(),
         };
 
-        // Add optimistic message to the beginning since messages are ordered newest first
-        setMessages(prev => [tempMessage!, ...prev]);
+        // Add threading info if replying
+        if (replyToMessageId) {
+          messageData.reply_to_message_id = replyToMessageId;
+          // Find the original message to get/set thread_id
+          const originalMessage = messages.find((msg) =>
+            msg.id === replyToMessageId
+          );
+          messageData.thread_id = originalMessage?.thread_id ||
+            replyToMessageId;
+        }
+
+        // Send to database
+        const { data, error } = await supabase
+          .from("wolf_private_messages")
+          .insert(messageData)
+          .select("id")
+          .single();
+
+        if (error) throw error;
+
+        // Update optimistic message with real ID
+        if (enableOptimisticUpdates && tempMessage && data) {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === tempMessage!.id ? { ...msg, id: data.id } : msg
+            )
+          );
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error sending message:", error);
+
+        // Remove optimistic update on error
+        if (enableOptimisticUpdates && tempMessage) {
+          setMessages((prev) =>
+            prev.filter((msg) => msg.id !== tempMessage!.id)
+          );
+        }
+
+        toast.error("Failed to send message");
+        return false;
+      } finally {
+        setIsSending(false);
       }
+    },
+    [currentUser, otherUserId, isSending, enableOptimisticUpdates, messages],
+  );
 
-      // Prepare message data
-      const messageData: any = {
-        sender_id: user.id,
-        receiver_id: otherUserId,
-        message: validation.sanitized!,
-        is_read: false,
-        is_deleted: false,
-        flagged: false,
-        created_at: new Date().toISOString()
-      };
-
-      // Add threading info if replying
-      if (replyToMessageId) {
-        messageData.reply_to_message_id = replyToMessageId;
-        // Find the original message to get/set thread_id
-        const originalMessage = messages.find(msg => msg.id === replyToMessageId);
-        messageData.thread_id = originalMessage?.thread_id || replyToMessageId;
-      }
-
-      // Send to database
-      const { data, error } = await supabase
-        .from('wolf_private_messages')
-        .insert(messageData)
-        .select('id')
-        .single();
-
-      if (error) throw error;
-
-      // Update optimistic message with real ID
-      if (enableOptimisticUpdates && tempMessage && data) {
-        setMessages(prev => prev.map(msg => 
-          msg.id === tempMessage!.id ? { ...msg, id: data.id } : msg
-        ));
-      }
-
-      return true;
-
-    } catch (error) {
-      console.error('Error sending message:', error);
-      
-      // Remove optimistic update on error
-      if (enableOptimisticUpdates && tempMessage) {
-        setMessages(prev => prev.filter(msg => msg.id !== tempMessage!.id));
-      }
-      
-      toast.error('Failed to send message');
-      return false;
-    } finally {
-      setIsSending(false);
-    }
-  }, [user, otherUserId, isSending, enableOptimisticUpdates, messages]);
-
-  // Block user function
+  // Block currentUser function
   const blockUser = useCallback(async () => {
-    if (!user || !otherUserId) return false;
+    if (!currentUser || !otherUserId) return false;
 
     try {
       const { error } = await supabase
-        .from('wolf_pack_interactions')
+        .from("wolf_pack_interactions")
         .upsert({
-          sender_id: user.id,
+          sender_id: currentUser.id,
           receiver_id: otherUserId,
-          interaction_type: 'block',
-          status: 'active',
-          created_at: new Date().toISOString()
+          interaction_type: "block",
+          status: "active",
+          created_at: new Date().toISOString(),
         }, {
-          onConflict: 'sender_id,receiver_id,interaction_type'
+          onConflict: "sender_id,receiver_id,interaction_type",
         });
 
       if (error) throw error;
 
       setIsBlocked(true);
-      toast.success('User blocked');
+      toast.success("User blocked");
       return true;
     } catch (error) {
-      console.error('Error blocking user:', error);
-      toast.error('Failed to block user');
+      console.error("Error blocking currentUser:", error);
+      toast.error("Failed to block currentUser");
       return false;
     }
-  }, [user, otherUserId]);
+  }, [currentUser, otherUserId]);
 
   // Report message function
-  const reportMessage = useCallback(async (messageId: string, reason: string) => {
-    if (!user) return false;
+  const reportMessage = useCallback(
+    async (messageId: string, reason: string) => {
+      if (!currentUser) return false;
 
-    try {
-      const { error } = await supabase
-        .from('content_flags')
-        .insert({
-          content_type: 'private_message',
-          content_id: messageId,
-          flagged_by: user.id,
-          reason,
-          status: 'pending'
-        });
+      try {
+        const { error } = await supabase
+          .from("content_flags")
+          .insert({
+            content_type: "private_message",
+            content_id: messageId,
+            flagged_by: currentUser.id,
+            reason,
+            status: "pending",
+          });
 
-      if (error) throw error;
-      toast.success('Message reported');
-      return true;
-    } catch (error) {
-      console.error('Error reporting message:', error);
-      toast.error('Failed to report message');
-      return false;
-    }
-  }, [user]);
+        if (error) throw error;
+        toast.success("Message reported");
+        return true;
+      } catch (error) {
+        console.error("Error reporting message:", error);
+        toast.error("Failed to report message");
+        return false;
+      }
+    },
+    [currentUser],
+  );
 
   // Toggle reaction function
-  const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
-    if (!user) {
-      toast.error('Authentication required');
-      return false;
-    }
-
-    try {
-      const { data, error } = await supabase.rpc('toggle_private_message_reaction', {
-        p_message_id: messageId,
-        p_emoji: emoji
-      });
-
-      if (error) throw error;
-
-      // Refresh message reactions
-      await loadChatData();
-      
-      if (data === true) {
-        toast.success(`${emoji} reaction added!`);
-      } else {
-        toast.success('Reaction removed');
+  const toggleReaction = useCallback(
+    async (messageId: string, emoji: string) => {
+      if (!currentUser) {
+        toast.error("Authentication required");
+        return false;
       }
-      
-      return true;
-    } catch (error) {
-      console.error('Error toggling reaction:', error);
-      toast.error('Failed to update reaction');
-      return false;
-    }
-  }, [user, loadChatData]);
+
+      try {
+        const { data, error } = await supabase.rpc(
+          "toggle_private_message_reaction",
+          {
+            p_message_id: messageId,
+            p_emoji: emoji,
+          },
+        );
+
+        if (error) throw error;
+
+        // Refresh message reactions
+        await loadChatData();
+
+        if (data === true) {
+          toast.success(`${emoji} reaction added!`);
+        } else {
+          toast.success("Reaction removed");
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error toggling reaction:", error);
+        toast.error("Failed to update reaction");
+        return false;
+      }
+    },
+    [currentUser, loadChatData],
+  );
 
   // Get conversation ID for typing indicators
   const getConversationId = useCallback(() => {
-    if (!user || !otherUserId) return '';
-    return [user.id, otherUserId].sort().join('_');
-  }, [user, otherUserId]);
+    if (!currentUser || !otherUserId) return "";
+    return [currentUser.id, otherUserId].sort().join("_");
+  }, [currentUser, otherUserId]);
 
   // Update typing indicator
   const updateTypingIndicator = useCallback(async () => {
-    if (!user || !otherUserId) return;
+    if (!currentUser || !otherUserId) return;
 
     try {
-      await supabase.rpc('update_typing_indicator', {
-        p_conversation_type: 'private',
-        p_conversation_id: getConversationId()
+      await supabase.rpc("update_typing_indicator", {
+        p_conversation_type: "private",
+        p_conversation_id: getConversationId(),
       });
     } catch (error) {
-      console.error('Error updating typing indicator:', error);
+      console.error("Error updating typing indicator:", error);
     }
-  }, [user, otherUserId, getConversationId]);
+  }, [currentUser, otherUserId, getConversationId]);
 
   // Mark messages as read using the new system
   const markConversationRead = useCallback(async (lastMessageId: string) => {
-    if (!user || !otherUserId) return;
+    if (!currentUser || !otherUserId) return;
 
     try {
-      await supabase.rpc('mark_messages_read', {
-        p_conversation_type: 'private',
+      await supabase.rpc("mark_messages_read", {
+        p_conversation_type: "private",
         p_conversation_id: getConversationId(),
-        p_last_message_id: lastMessageId
+        p_last_message_id: lastMessageId,
       });
     } catch (error) {
-      console.error('Error marking conversation as read:', error);
+      console.error("Error marking conversation as read:", error);
     }
-  }, [user, otherUserId, getConversationId]);
+  }, [currentUser, otherUserId, getConversationId]);
 
   // Get unread count for conversation
   const getConversationUnreadCount = useCallback(async () => {
-    if (!user || !otherUserId) return 0;
+    if (!currentUser || !otherUserId) return 0;
 
     try {
-      const { data, error } = await supabase.rpc('get_unread_count', {
-        p_conversation_type: 'private',
-        p_conversation_id: getConversationId()
+      const { data, error } = await supabase.rpc("get_unread_count", {
+        p_conversation_type: "private",
+        p_conversation_id: getConversationId(),
       });
 
       if (error) throw error;
       return data || 0;
     } catch (error) {
-      console.error('Error getting unread count:', error);
+      console.error("Error getting unread count:", error);
       return 0;
     }
-  }, [user, otherUserId, getConversationId]);
+  }, [currentUser, otherUserId, getConversationId]);
 
   // Typing indicator functions
   const setTypingStatus = useCallback((isTyping: boolean) => {
-    if (!enableTypingIndicator || !user || !otherUserId) return;
+    if (!enableTypingIndicator || !currentUser || !otherUserId) return;
 
     typingIndicatorRef.current.setTyping(
-      `${user.id}_${otherUserId}`,
+      `${currentUser.id}_${otherUserId}`,
       isTyping,
       (typing) => {
         // You can implement real-time typing indicators here
         // by sending presence updates through Supabase channels
-        console.log('Typing status:', typing);
-      }
+        console.log("Typing status:", typing);
+      },
     );
-  }, [enableTypingIndicator, user, otherUserId]);
+  }, [enableTypingIndicator, currentUser, otherUserId]);
 
-  // Get unread count for current user
+  // Get unread count for current currentUser
   const getUnreadCount = useCallback(async () => {
-    if (!user) return 0;
+    if (!currentUser) return 0;
 
     try {
-      const { data, error } = await supabase.rpc('get_unread_message_count', {
-        p_user_id: user.id
+      const { data, error } = await supabase.rpc("get_unread_message_count", {
+        p_currentUser_id: currentUser.id,
       });
 
       if (error) throw error;
       return data || 0;
     } catch (error) {
-      console.error('Error getting unread count:', error);
+      console.error("Error getting unread count:", error);
       return 0;
     }
-  }, [user]);
+  }, [currentUser]);
 
   // Effect to load initial data
   useEffect(() => {
@@ -702,30 +743,37 @@ export function useChat(options: UseChatOptions = {}) {
 
   // Effect to setup real-time subscription
   useEffect(() => {
-    if (user && otherUserId && !isBlocked && !isLoading) {
+    if (currentUser && otherUserId && !isBlocked && !isLoading) {
       setupRealtimeSubscription();
     }
 
     return cleanup;
-  }, [user, otherUserId, isBlocked, isLoading, setupRealtimeSubscription, cleanup]);
+  }, [
+    currentUser,
+    otherUserId,
+    isBlocked,
+    isLoading,
+    setupRealtimeSubscription,
+    cleanup,
+  ]);
 
   // Effect to handle focus/blur for read receipts
   useEffect(() => {
     const handleFocus = () => {
       if (unreadCount > 0 && otherUserId) {
         const unreadMessages = messages.filter(
-          msg => msg.sender_id === otherUserId && !msg.is_read
+          (msg) => msg.sender_id === otherUserId && !msg.is_read,
         );
-        
+
         if (unreadMessages.length > 0) {
-          markMessagesAsRead(unreadMessages.map(msg => msg.id));
+          markMessagesAsRead(unreadMessages.map((msg) => msg.id));
           setUnreadCount(0);
         }
       }
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [unreadCount, messages, otherUserId, markMessagesAsRead]);
 
   // Cleanup on unmount
@@ -737,7 +785,7 @@ export function useChat(options: UseChatOptions = {}) {
     // State
     messages,
     otherUser,
-    currentUser: user,
+    currentUser: currentUser,
     conversations,
     isLoading,
     isSending,
@@ -763,35 +811,36 @@ export function useChat(options: UseChatOptions = {}) {
 
     // Utilities
     formatMessageTime,
-    groupMessages: (msgs: PrivateMessage[]) => groupMessages(msgs, user?.id || ''),
-    
+    groupMessages: (msgs: PrivateMessage[]) =>
+      groupMessages(msgs, currentUser?.id || ""),
+
     // Connection management
     reconnect: setupRealtimeSubscription,
-    disconnect: cleanup
+    disconnect: cleanup,
   };
 }
 
 // Hook for managing multiple conversations
 export function useConversations() {
-  const { user } = useUser();
+  const { currentUser } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
   const loadConversations = useCallback(async () => {
-    if (!user) return;
+    if (!currentUser) return;
 
     try {
       setIsLoading(true);
-      
+
       const [conversationsResult, unreadResult] = await Promise.all([
-        supabase.rpc('get_recent_conversations', {
-          p_user_id: user.id,
-          p_limit: 50
+        supabase.rpc("get_recent_conversations", {
+          p_currentUser_id: currentUser.id,
+          p_limit: 50,
         }),
-        supabase.rpc('get_unread_message_count', {
-          p_user_id: user.id
-        })
+        supabase.rpc("get_unread_message_count", {
+          p_currentUser_id: currentUser.id,
+        }),
       ]);
 
       if (conversationsResult.data) {
@@ -802,11 +851,11 @@ export function useConversations() {
         setTotalUnreadCount(unreadResult.data);
       }
     } catch (error) {
-      console.error('Error loading conversations:', error);
+      console.error("Error loading conversations:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [currentUser]);
 
   useEffect(() => {
     loadConversations();
@@ -816,6 +865,6 @@ export function useConversations() {
     conversations,
     totalUnreadCount,
     isLoading,
-    refresh: loadConversations
+    refresh: loadConversations,
   };
 }

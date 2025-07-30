@@ -9,8 +9,8 @@ This document ensures your frontend code stays perfectly synchronized with the S
 | Table | Purpose | Key Columns |
 |-------|---------|-------------|
 | `wolfpack_post_likes` | Post likes/hearts | `video_id`, `user_id` (unique together) |
-| `wolfpack_comments` | Comments & replies | `video_id`, `parent_comment_id`, `content` |
-| `wolfpack_videos` | wolfpack_posts/videos | `id`, `user_id`, `video_url` |
+| `wolfpack_comments` | wolfpack_comments & replies | `video_id`, `parent_comment_id`, `content` |
+| `wolfpack_videos` | wolfpack_posts/wolfpack_videos | `id`, `user_id`, `video_url` |
 | `users` | User profiles | `id`, `first_name`, `last_name`, `avatar_url` |
 
 ### Key RPC Functions
@@ -51,7 +51,7 @@ if (error?.code === '23505') {
 
 ### `wolfpack_comments` Table
 ```sql
-CREATE TABLE wolfpack_comments (
+CREATE TABLE wolfpack_comments(
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   video_id uuid REFERENCES wolfpack_videos(id),
   user_id uuid NOT NULL REFERENCES users(id),
@@ -67,7 +67,7 @@ CREATE TABLE wolfpack_comments (
 
 **Frontend Usage:**
 ```typescript
-// ✅ Get top-level comments
+// ✅ Get top-level wolfpack_comments
 await supabase
   .from('wolfpack_comments')
   .select(`
@@ -113,10 +113,10 @@ import {
 } from '@/lib/database/likes'
 
 import { 
-  getCommentsForPost,
+  getwolfpack_commentsForPost,
   createComment,
   deleteComment 
-} from '@/lib/database/comments'
+} from '@/lib/database/wolfpack_comments'
 ```
 
 ### 3. Use React Hooks
@@ -124,12 +124,12 @@ import {
 **Import standardized hooks:**
 
 ```typescript
-import { useComments } from '@/hooks/useComments'
+import { usewolfpack_comments } from '@/hooks/usewolfpack_comments'
 import { useLikes } from '@/hooks/useLikes'
 import { usewolfpack_posts } from '@/hooks/usewolfpack_posts'
 
 function VideoCard({ postId }: { postId: string }) {
-  const { comments, addComment } = useComments(postId)
+  const { wolfpack_comments, addComment } = usewolfpack_comments(postId)
   const { liked, likeCount, toggleLike } = useLikes(postId)
   
   return (
@@ -137,7 +137,7 @@ function VideoCard({ postId }: { postId: string }) {
       <button onClick={toggleLike}>
         {liked ? '❤️' : '🤍'} {likeCount}
       </button>
-      {/* Comments UI */}
+      {/* wolfpack_comments UI */}
     </div>
   )
 }
@@ -255,8 +255,8 @@ async function validateSchema() {
     .select('id, video_id, user_id, created_at')
     .limit(1)
   
-  // 2. Test comments table  
-  const { data: comments } = await supabase
+  // 2. Test wolfpack_comments table  
+  const { data: wolfpack_comments } = await supabase
     .from('wolfpack_comments')
     .select('id, video_id, user_id, content, parent_comment_id')
     .limit(1)
@@ -278,7 +278,7 @@ async function validateSchema() {
 1. **Update Database First**
    ```sql
    -- Add new column
-   ALTER TABLE wolfpack_comments 
+   ALTER TABLE wolfpack_comments
    ADD COLUMN is_featured boolean DEFAULT false;
    ```
 
@@ -321,8 +321,8 @@ Your schema includes these RLS policies:
 CREATE POLICY "Users can delete own likes" ON wolfpack_post_likes
   FOR DELETE USING (auth.uid() = user_id);
 
--- Users can only update their own comments  
-CREATE POLICY "Users can update own comments" ON wolfpack_comments
+-- Users can only update their own wolfpack_comments  
+CREATE POLICY "Users can update own wolfpack_comments" ON wolfpack_comments
   FOR UPDATE USING (auth.uid() = user_id);
 ```
 
@@ -357,7 +357,7 @@ Your schema should have these indexes:
 CREATE INDEX idx_wolfpack_post_likes_video_id ON wolfpack_post_likes(video_id);
 CREATE INDEX idx_wolfpack_post_likes_user_id ON wolfpack_post_likes(user_id);
 
--- For comments queries  
+-- For wolfpack_comments queries  
 CREATE INDEX idx_wolfpack_comments_video_id ON wolfpack_comments(video_id);
 CREATE INDEX idx_wolfpack_comments_parent_id ON wolfpack_comments(parent_comment_id);
 ```
@@ -370,7 +370,7 @@ const { data } = await supabase
   .from('wolfpack_comments')
   .select('*')
   .eq('video_id', postId)
-  .range(0, 19)  // Limit to 20 comments
+  .range(0, 19)  // Limit to 20 wolfpack_comments
   
 // ✅ Use count queries efficiently
 const { count } = await supabase

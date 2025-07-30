@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import { Database } from "@/types/database.types";
 // Import the new typed database functions
@@ -10,7 +10,7 @@ import {
 import {
   createComment as createNewComment,
   deleteComment as removeComment,
-  getCommentsForPost,
+  getwolfpack_commentsForPost,
 } from "@/lib/database/comments";
 
 export interface WolfpackLike {
@@ -50,9 +50,9 @@ export interface WolfpackFollow {
   created_at: string;
 }
 
-export interface VideoStats {
+export interface wolfpack_videostats {
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   user_liked: boolean;
 }
 
@@ -85,7 +85,10 @@ class WolfpackSocialService {
   }
 
   // Get video stats with user like status - Updated to use correct RPC and table names
-  async getVideoStats(videoId: string, userId?: string): Promise<VideoStats> {
+  async getwolfpack_videostats(
+    videoId: string,
+    userId?: string,
+  ): Promise<wolfpack_videostats> {
     try {
       // Get like count from correct table
       const likeCount = await getPostLikeCount(videoId);
@@ -104,12 +107,12 @@ class WolfpackSocialService {
 
       return {
         likes_count: likeCount,
-        comments_count: commentCount || 0,
+        wolfpack_comments_count: commentCount || 0,
         user_liked: userLiked,
       };
     } catch (error) {
       console.error("Error getting video stats:", error);
-      return { likes_count: 0, comments_count: 0, user_liked: false };
+      return { likes_count: 0, wolfpack_comments_count: 0, user_liked: false };
     }
   }
 
@@ -154,40 +157,41 @@ class WolfpackSocialService {
     }
   }
 
-  async getComments(
+  async getwolfpack_comments(
     videoId: string,
     userId?: string,
     parentId: string | null = null,
   ): Promise<WolfpackComment[]> {
     try {
-      // Use the new typed function for basic comments
-      const comments = await getCommentsForPost(videoId);
+      // Use the new typed function for basic wolfpack_comments
+      const wolfpack_comments = await getwolfpack_commentsForPost(videoId);
 
       // Convert to old interface format for backward compatibility
-      const formattedComments: WolfpackComment[] = comments.map((comment) => ({
-        id: comment.id,
-        user_id: comment.user_id,
-        video_id: comment.video_id,
-        parent_id: comment.parent_comment_id,
-        content: comment.content,
-        created_at: comment.created_at,
-        updated_at: comment.updated_at || comment.created_at,
-        is_deleted: false,
-        user: comment.user
-          ? {
-            id: comment.user.id,
-            first_name: comment.user.first_name,
-            last_name: comment.user.last_name,
-            avatar_url: comment.user.avatar_url,
-          }
-          : undefined,
-        reactions: [], // Will be populated by real-time subscription or manual fetch
-        replies_count: 0, // Could be enhanced later
-      }));
+      const formattedwolfpack_comments: WolfpackComment[] = wolfpack_comments
+        .map((comment) => ({
+          id: comment.id,
+          user_id: comment.user_id,
+          video_id: comment.video_id,
+          parent_id: comment.parent_comment_id,
+          content: comment.content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at || comment.created_at,
+          is_deleted: false,
+          user: comment.user
+            ? {
+              id: comment.user.id,
+              first_name: comment.user.first_name,
+              last_name: comment.user.last_name,
+              avatar_url: comment.user.avatar_url,
+            }
+            : undefined,
+          reactions: [], // Will be populated by real-time subscription or manual fetch
+          replies_count: 0, // Could be enhanced later
+        }));
 
-      return formattedComments;
+      return formattedwolfpack_comments;
     } catch (error) {
-      console.error("Error getting comments:", error);
+      console.error("Error getting wolfpack_comments:", error);
       return [];
     }
   }
@@ -195,19 +199,19 @@ class WolfpackSocialService {
   async addCommentReaction(
     commentId: string,
     userId: string,
-    reactionType: string = '❤️',
+    reactionType: string = "❤️",
   ): Promise<{ success: boolean }> {
     try {
       const { data, error } = await supabase
-        .from('wolfpack_comment_reactions')
+        .from("wolfpack_comment_reactions")
         .insert({
           comment_id: commentId,
           user_id: userId,
-          reaction_type: reactionType
+          reaction_type: reactionType,
         })
         .select()
         .single();
-        
+
       if (error) throw error;
       return { success: true };
     } catch (error) {
@@ -223,15 +227,15 @@ class WolfpackSocialService {
   ): Promise<{ success: boolean }> {
     try {
       let query = supabase
-        .from('wolfpack_comment_reactions')
+        .from("wolfpack_comment_reactions")
         .delete()
-        .eq('comment_id', commentId)
-        .eq('user_id', userId);
-        
+        .eq("comment_id", commentId)
+        .eq("user_id", userId);
+
       if (reactionType) {
-        query = query.eq('reaction_type', reactionType);
+        query = query.eq("reaction_type", reactionType);
       }
-      
+
       const { error } = await query;
       if (error) throw error;
       return { success: true };
@@ -245,43 +249,47 @@ class WolfpackSocialService {
   async getCommentReactions(commentId: string) {
     try {
       const { data, error } = await supabase
-        .from('wolfpack_comment_reactions')
+        .from("wolfpack_comment_reactions")
         .select(`
           *,
           user:users(id, first_name, last_name, avatar_url, display_name)
         `)
-        .eq('comment_id', commentId);
-        
+        .eq("comment_id", commentId);
+
       if (error) throw error;
       return data || [];
     } catch (error) {
-      console.error('Error getting comment reactions:', error);
+      console.error("Error getting comment reactions:", error);
       return [];
     }
   }
 
   // Check if user has reacted to a comment
-  async hasUserReacted(commentId: string, userId: string, reactionType?: string): Promise<boolean> {
+  async hasUserReacted(
+    commentId: string,
+    userId: string,
+    reactionType?: string,
+  ): Promise<boolean> {
     try {
       let query = supabase
-        .from('wolfpack_comment_reactions')
-        .select('id')
-        .eq('comment_id', commentId)
-        .eq('user_id', userId);
-        
+        .from("wolfpack_comment_reactions")
+        .select("id")
+        .eq("comment_id", commentId)
+        .eq("user_id", userId);
+
       if (reactionType) {
-        query = query.eq('reaction_type', reactionType);
+        query = query.eq("reaction_type", reactionType);
       }
-      
+
       const { data, error } = await query.single();
-      
-      if (error && error.code !== 'PGRST116') {
+
+      if (error && error.code !== "PGRST116") {
         throw error;
       }
-      
+
       return !!data;
     } catch (error) {
-      console.error('Error checking user reaction:', error);
+      console.error("Error checking user reaction:", error);
       return false;
     }
   }
@@ -501,9 +509,9 @@ class WolfpackSocialService {
   }
 
   // Real-time subscriptions
-  subscribeToVideoStats(
+  subscribeTowolfpack_videostats(
     videoId: string,
-    callback: (stats: VideoStats) => void,
+    callback: (stats: wolfpack_videostats) => void,
     userId?: string,
   ): () => void {
     const channelName = `video-stats-${videoId}`;
@@ -522,7 +530,7 @@ class WolfpackSocialService {
           filter: `video_id=eq.${videoId}`,
         },
         async () => {
-          const stats = await this.getVideoStats(videoId, userId);
+          const stats = await this.getwolfpack_videostats(videoId, userId);
           callback(stats);
         },
       )
@@ -535,7 +543,7 @@ class WolfpackSocialService {
           filter: `video_id=eq.${videoId}`,
         },
         async () => {
-          const stats = await this.getVideoStats(videoId, userId);
+          const stats = await this.getwolfpack_videostats(videoId, userId);
           callback(stats);
         },
       )
@@ -546,12 +554,12 @@ class WolfpackSocialService {
     return () => this.unsubscribe(channelName);
   }
 
-  subscribeToComments(
+  subscribeTowolfpack_comments(
     videoId: string,
-    callback: (comments: WolfpackComment[]) => void,
+    callback: (wolfpack_comments: WolfpackComment[]) => void,
     userId?: string,
   ): () => void {
-    const channelName = `comments-${videoId}`;
+    const channelName = `wolfpack_comments-${videoId}`;
 
     // Clean up existing subscription
     this.unsubscribe(channelName);
@@ -567,8 +575,11 @@ class WolfpackSocialService {
           filter: `video_id=eq.${videoId}`,
         },
         async () => {
-          const comments = await this.getComments(videoId, userId);
-          callback(comments);
+          const wolfpack_comments = await this.getwolfpack_comments(
+            videoId,
+            userId,
+          );
+          callback(wolfpack_comments);
         },
       )
       .subscribe();
@@ -595,45 +606,49 @@ class WolfpackSocialService {
   }
 
   // Share tracking methods
-  async trackShare(videoId: string, userId: string, platform: string = 'direct') {
+  async trackShare(
+    videoId: string,
+    userId: string,
+    platform: string = "direct",
+  ) {
     try {
       // Track the share event in database
       const { data, error } = await supabase
-        .from('wolfpack_video_shares')
+        .from("wolfpack_video_shares")
         .insert({
           video_id: videoId,
           shared_by_user_id: userId,
           share_type: platform,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
         })
         .select()
         .single();
 
       if (error) {
-        console.error('Error tracking share:', error);
+        console.error("Error tracking share:", error);
         return { success: false };
       }
 
       // Update video shares count
-      await this.updateVideoSharesCount(videoId);
-      
+      await this.updatewolfpack_videosharesCount(videoId);
+
       return { success: true, share: data };
     } catch (error) {
-      console.error('Error tracking share:', error);
+      console.error("Error tracking share:", error);
       return { success: false };
     }
   }
 
-  async updateVideoSharesCount(videoId: string) {
+  async updatewolfpack_videosharesCount(videoId: string) {
     try {
       // Get current shares count
       const { data: sharesData, error: sharesError } = await supabase
-        .from('wolfpack_video_shares')
-        .select('id')
-        .eq('video_id', videoId);
+        .from("wolfpack_video_shares")
+        .select("id")
+        .eq("video_id", videoId);
 
       if (sharesError) {
-        console.error('Error getting shares count:', sharesError);
+        console.error("Error getting shares count:", sharesError);
         return;
       }
 
@@ -641,22 +656,22 @@ class WolfpackSocialService {
 
       // Update video shares count
       const { error: updateError } = await supabase
-        .from('wolfpack_videos')
+        .from("wolfpack_videos")
         .update({ shares_count: sharesCount })
-        .eq('id', videoId);
+        .eq("id", videoId);
 
       if (updateError) {
-        console.error('Error updating video shares count:', updateError);
+        console.error("Error updating video shares count:", updateError);
       }
     } catch (error) {
-      console.error('Error updating shares count:', error);
+      console.error("Error updating shares count:", error);
     }
   }
 
-  async getVideoShares(videoId: string) {
+  async getwolfpack_videoshares(videoId: string) {
     try {
       const { data, error } = await supabase
-        .from('wolfpack_video_shares')
+        .from("wolfpack_video_shares")
         .select(`
           *,
           user:users!shared_by_user_id (
@@ -666,17 +681,17 @@ class WolfpackSocialService {
             avatar_url
           )
         `)
-        .eq('video_id', videoId)
-        .order('created_at', { ascending: false });
+        .eq("video_id", videoId)
+        .order("created_at", { ascending: false });
 
       if (error) {
-        console.error('Error getting video shares:', error);
+        console.error("Error getting video shares:", error);
         return [];
       }
 
       return data || [];
     } catch (error) {
-      console.error('Error getting video shares:', error);
+      console.error("Error getting video shares:", error);
       return [];
     }
   }

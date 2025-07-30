@@ -21,7 +21,7 @@ Users are experiencing authentication issues where `auth.uid()` returns null on 
 **supabase.auth.getUser() Usage:**
 - Widespread use across frontend components and services:
   - `hooks/useDJDashboard.ts`
-  - `lib/database/comments.ts`
+  - `lib/database/wolfpack_comments.ts`
   - `lib/services/like.service.ts`
   - `lib/services/wolfpack.service.ts`
 

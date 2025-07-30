@@ -33,7 +33,7 @@ interface WolfpackFeedCursorRow {
   duration: number;
   view_count: number;
   like_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   hashtags: string[];
   created_at: string;
@@ -60,7 +60,7 @@ interface WolfpackVideoRow {
   description: string | null;
   title: string | null;
   likes_count: number | null;
-  comments_count: number | null;
+  wolfpack_comments_count: number | null;
   views_count: number | null;
   view_count: number | null;
   like_count: number | null;
@@ -95,7 +95,7 @@ interface VideoFeedRow {
     thumbnail_url: string;
     caption: string;
     likes_count: number;
-    comments_count: number;
+    wolfpack_comments_count: number;
     views_count: number;
     created_at: string;
     user_liked: boolean;
@@ -163,7 +163,7 @@ export class WolfpackFeedService {
       video_url: row.video_url,
       thumbnail_url: row.thumbnail_url || undefined,
       likes_count: row.like_count || 0,
-      comments_count: row.comments_count || 0,
+      wolfpack_comments_count: row.wolfpack_comments_count || 0,
       shares_count: row.shares_count || 0,
       music_name: "Original Sound",
       hashtags: row.hashtags || [],
@@ -215,7 +215,8 @@ export class WolfpackFeedService {
       video_url: video.video_url || "",
       thumbnail_url: video.thumbnail_url || undefined,
       likes_count: video.likes_count || video.like_count || 0,
-      comments_count: video.comments_count || video.comment_count || 0,
+      wolfpack_comments_count: video.wolfpack_comments_count ||
+        video.comment_count || 0,
       shares_count: video.share_count || 0,
       music_name: video.music_name || "Original Sound",
       hashtags: video.hashtags || [],
@@ -245,9 +246,9 @@ export class WolfpackFeedService {
     const { page, limit } = validatePagination(options.page, options.limit);
     const offset = (page - 1) * limit;
 
-    // Use the view that includes user_liked and user_following
+    // Use the main wolfpack videos table
     const query = supabase
-      .from("wolfpack_videos_with_user_interaction")
+      .from("wolfpack_videos")
       .select(
         `
         *,
@@ -273,8 +274,8 @@ export class WolfpackFeedService {
     if (error) throw error;
 
     // Ensure data is typed correctly
-    const videos = data as WolfpackVideoRow[] | null;
-    if (!videos) {
+    const wolfpack_videos = data as WolfpackVideoRow[] | null;
+    if (!wolfpack_videos) {
       return {
         items: [],
         totalItems: 0,
@@ -282,7 +283,7 @@ export class WolfpackFeedService {
       };
     }
 
-    const items: FeedItem[] = videos.map((video) => {
+    const items: FeedItem[] = wolfpack_videos.map((video) => {
       const transformed = this.transformVideoRowToFeedItem(video);
       // Return without user_liked and user_following at the root level
       const { user_liked, user_following, ...feedItem } = transformed;
@@ -357,7 +358,7 @@ export class WolfpackFeedService {
         video_url: video.video_url || "",
         thumbnail_url: video.thumbnail_url || undefined,
         likes_count: video.likes_count || 0,
-        comments_count: video.comments_count || 0,
+        wolfpack_comments_count: video.wolfpack_comments_count || 0,
         shares_count: 0, // Not returned by the function
         music_name: "Original Sound",
         hashtags: [], // Not returned by the function
@@ -538,7 +539,7 @@ export class WolfpackFeedService {
       };
 
       const { data, error } = await supabase
-        .from(WOLFPACK_TABLES.VIDEOS)
+        .from("wolfpack_videos")
         .insert(insertData)
         .select(`
           *,
@@ -577,7 +578,7 @@ export class WolfpackFeedService {
       };
 
       const { data, error } = await supabase
-        .from(WOLFPACK_TABLES.VIDEOS)
+        .from("wolfpack_videos")
         .update(updateData)
         .eq("id", postId)
         .eq("user_id", user.id)
@@ -611,7 +612,7 @@ export class WolfpackFeedService {
         const user = await WolfpackAuthService.verifyUser();
 
         const { error } = await supabase
-          .from(WOLFPACK_TABLES.VIDEOS)
+          .from("wolfpack_videos")
           .update({
             is_active: false,
             updated_at: new Date().toISOString(),
@@ -655,14 +656,14 @@ export class WolfpackFeedService {
   static getPostStats = withErrorHandling(async (postId: string): Promise<{
     views: number;
     likes: number;
-    comments: number;
+    wolfpack_comments: number;
   }> => {
     validateUUID(postId, "Post ID");
 
     // Get post basic stats
     const { data: post, error: postError } = await supabase
-      .from(WOLFPACK_TABLES.VIDEOS)
-      .select("view_count, views_count, like_count, likes_count")
+      .from("wolfpack_videos")
+      .select("view_count, like_count")
       .eq("id", postId)
       .single();
 
@@ -670,7 +671,7 @@ export class WolfpackFeedService {
 
     // Get comment count
     const { count: commentCount, error: commentError } = await supabase
-      .from(WOLFPACK_TABLES.COMMENTS)
+      .from("wolfpack_comments")
       .select("*", { count: "exact", head: true })
       .eq("video_id", postId);
 
@@ -679,9 +680,9 @@ export class WolfpackFeedService {
     }
 
     return {
-      views: post?.view_count || post?.views_count || 0,
-      likes: post?.like_count || post?.likes_count || 0,
-      comments: commentCount || 0,
+      views: post?.view_count || 0,
+      likes: post?.like_count || 0,
+      wolfpack_comments: commentCount || 0,
     };
   }, "WolfpackFeedService.getPostStats");
 
@@ -716,7 +717,7 @@ export class WolfpackFeedService {
     }
 
     const { data, error, count } = await supabase
-      .from("wolfpack_videos_with_user_interaction")
+      .from("wolfpack_videos")
       .select(
         `
         *,
@@ -742,8 +743,8 @@ export class WolfpackFeedService {
 
     if (error) throw error;
 
-    const videos = data as WolfpackVideoRow[] | null;
-    if (!videos) {
+    const wolfpack_videos = data as WolfpackVideoRow[] | null;
+    if (!wolfpack_videos) {
       return {
         items: [],
         totalItems: 0,
@@ -751,7 +752,7 @@ export class WolfpackFeedService {
       };
     }
 
-    const items: FeedItem[] = videos.map((video) => {
+    const items: FeedItem[] = wolfpack_videos.map((video) => {
       const transformed = this.transformVideoRowToFeedItem(video);
       // Return without user_liked and user_following at the root level
       const { user_liked, user_following, ...feedItem } = transformed;

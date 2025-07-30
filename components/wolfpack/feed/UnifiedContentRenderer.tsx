@@ -18,7 +18,7 @@ export interface UnifiedContentItem {
   media_type?: 'image' | 'video' | 'audio';
   created_at: string;
   likes_count: number;
-  comments_count: number;
+  wolfpack_comments_count: number;
   shares_count: number;
   is_live?: boolean;
   user_liked?: boolean;

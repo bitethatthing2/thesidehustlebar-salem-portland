@@ -37,19 +37,19 @@ CREATE TRIGGER update_wolfpack_videos_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Create RLS policies
-CREATE POLICY "Everyone can view active wolfpack videos"
+CREATE POLICY "Everyone can view active wolfpack wolfpack_videos"
     ON "public"."wolfpack_videos"
     FOR SELECT
     TO public
     USING (is_active = true);
 
-CREATE POLICY "Users can insert their own wolfpack videos"
+CREATE POLICY "Users can insert their own wolfpack wolfpack_videos"
     ON "public"."wolfpack_videos"
     FOR INSERT
     TO public
     WITH CHECK (user_id IN (SELECT id FROM users WHERE auth_id = auth.uid()));
 
-CREATE POLICY "Users can update their own wolfpack videos"
+CREATE POLICY "Users can update their own wolfpack wolfpack_videos"
     ON "public"."wolfpack_videos"
     FOR UPDATE
     TO public

@@ -1,5 +1,5 @@
 -- Remove problematic example.com video records that are causing loading errors
--- These videos are trying to load from https://example.com/video1.mp4, etc.
+-- These wolfpack_videos are trying to load from https://example.com/video1.mp4, etc.
 
 -- Delete any wolfpack_videos records with example.com URLs
 DELETE FROM public.wolfpack_videos 

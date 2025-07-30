@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AvatarWithFallback } from '@/components/shared/ImageWithFallback';
 import { supabase } from '@/lib/supabase';
-import { useUser } from '@/hooks/useUser';
+import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { formatJoinDate, formatLastSeen } from '@/lib/utils/date-utils';
 import { resolveAvatarUrl } from '@/lib/utils/avatar-utils';
@@ -56,7 +56,7 @@ export function UserProfileModal({
   userDisplayName,
   userAvatarUrl 
 }: UserProfileModalProps) {
-  const { user: currentUser } = useUser();
+  const { currentUser } = useAuth();
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(false);
