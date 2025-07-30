@@ -57,7 +57,7 @@ export default function TikTokStyleFeed({
   userLikes
 }: TikTokStyleFeedProps) {
   const router = useRouter();
-  const { currentUser: loggedInUser, authUser, isAuthenticated } = useAuth
+  const { currentUser: loggedInUser, authUser, isAuthenticated } = useAuth()
   const [currentIndex, setCurrentIndex] = useState(0);
   const [muted, setMuted] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
@@ -695,7 +695,19 @@ export default function TikTokStyleFeed({
               </button>
 
               {/* Delete Button - only for current user's wolfpack_posts */}
-              {loggedInUser && video.user_id === loggedInUser.id && onDelete && (
+              {(() => {
+                const shouldShow = loggedInUser && video.user_id === loggedInUser.id && onDelete;
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('Delete button check:', {
+                    loggedInUser: loggedInUser?.id,
+                    videoUserId: video.user_id,
+                    videoUsername: video.username,
+                    onDelete: !!onDelete,
+                    shouldShow
+                  });
+                }
+                return shouldShow;
+              })() && (
                 <button
                   onClick={() => onDelete(video.id)}
                   className="flex flex-col items-center group"
