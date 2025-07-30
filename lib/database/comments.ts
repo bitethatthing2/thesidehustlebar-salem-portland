@@ -18,6 +18,8 @@ type CommentInsert =
 export async function getwolfpack_commentsForPost(
   postId: string,
 ): Promise<Comment[]> {
+  console.log('🔍 COMMENTS DEBUG: Loading comments for video:', postId);
+  
   // Fetch ALL wolfpack_comments for this post (both root wolfpack_comments and replies)
   const { data, error } = await supabase
     .from("wolfpack_comments")
@@ -35,10 +37,11 @@ export async function getwolfpack_commentsForPost(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching wolfpack_comments:", error);
+    console.error("❌ Error fetching wolfpack_comments:", error);
     throw new Error(`Failed to fetch wolfpack_comments: ${error.message}`);
   }
 
+  console.log('✅ COMMENTS DEBUG: Found', data?.length || 0, 'comments');
   return data || [];
 }
 

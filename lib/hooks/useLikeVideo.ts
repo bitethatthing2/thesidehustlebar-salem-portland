@@ -16,7 +16,10 @@ export function useLikeVideo(): LikeVideoHookReturn {
     try {
       // Get the app user ID (maps from auth.users to public.users)
       const appUserId = await getAppUserId(supabase);
+      console.log('🔍 LIKE DEBUG:', { videoId, isCurrentlyLiked, appUserId });
+      
       if (!appUserId) {
+        console.error('❌ No app user ID found');
         throw new Error('Not authenticated or user not found');
       }
 
