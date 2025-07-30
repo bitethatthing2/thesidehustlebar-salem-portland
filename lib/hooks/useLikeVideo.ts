@@ -1,0 +1,54 @@
+import { useState, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
+import { getAppUserId } from '@/lib/utils/auth-helpers';
+
+interface LikeVideoHookReturn {
+  toggleLike: (videoId: string, isCurrentlyLiked: boolean) => Promise<{ success: boolean; error?: any }>;
+  loading: boolean;
+}
+
+export function useLikeVideo(): LikeVideoHookReturn {
+  const [loading, setLoading] = useState(false);
+
+  const toggleLike = useCallback(async (videoId: string, isCurrentlyLiked: boolean) => {
+    setLoading(true);
+    
+    try {
+      // Get the app user ID (maps from auth.users to public.users)
+      const appUserId = await getAppUserId(supabase);
+      if (!appUserId) {
+        throw new Error('Not authenticated or user not found');
+      }
+
+      if (isCurrentlyLiked) {
+        // Remove like - note: table should be wolfpack_post_likes based on your existing structure
+        const { error } = await supabase
+          .from('wolfpack_post_likes')
+          .delete()
+          .eq('video_id', videoId)
+          .eq('user_id', appUserId);
+
+        if (error) throw error;
+      } else {
+        // Add like
+        const { error } = await supabase
+          .from('wolfpack_post_likes')
+          .insert({
+            video_id: videoId,
+            user_id: appUserId // Use app user ID, not auth ID
+          });
+
+        if (error) throw error;
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error toggling like:', error);
+      return { success: false, error };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { toggleLike, loading };
+}
