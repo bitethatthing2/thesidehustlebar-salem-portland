@@ -658,19 +658,7 @@ export default function TikTokStyleFeed({
               </button>
 
               {/* Delete Button - only for current user's wolfpack_posts */}
-              {(() => {
-                const shouldShow = loggedInUser && video.user_id === loggedInUser.id && onDelete;
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('Delete button check:', {
-                    loggedInUser: loggedInUser?.id,
-                    videoUserId: video.user_id,
-                    videoUsername: video.username,
-                    onDelete: !!onDelete,
-                    shouldShow
-                  });
-                }
-                return shouldShow;
-              })() && (
+              {loggedInUser && video.user_id === loggedInUser.id && onDelete && (
                 <button
                   onClick={() => onDelete(video.id)}
                   className="flex flex-col items-center group"

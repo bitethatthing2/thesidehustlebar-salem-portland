@@ -49,32 +49,32 @@ export default function OptimizedWolfpackFeedPage() {
         id: '1',
         user_id: 'sample-user',
         username: 'WolfPack Member',
-        avatar_url: 'https://via.placeholder.com/50',
-        caption: 'Welcome to the Wolf Pack! This is a sample video.',
-        video_url: 'https://commondatastorage.googleapis.com/gtv-wolfpack_videos-bucket/sample/BigBuckBunny.mp4',
-        thumbnail_url: 'https://via.placeholder.com/300x400',
+        avatar_url: '/icons/wolf-icon.png',
+        caption: 'Welcome to the Wolf Pack! Check out our amazing food and drinks.',
+        video_url: null, // No video, use image
+        thumbnail_url: '/images/entertainment-hero.jpg',
         likes_count: 42,
         wolfpack_comments_count: 5,
         shares_count: 2,
         created_at: new Date().toISOString(),
         music_name: 'Original Sound',
-        hashtags: ['wolfpack', 'sample'],
+        hashtags: ['wolfpack', 'food'],
         view_count: 100
       },
       {
         id: '2',
         user_id: 'sample-user-2',
         username: 'Pack Leader',
-        avatar_url: 'https://via.placeholder.com/50',
-        caption: 'Another sample video for testing the feed!',
-        video_url: 'https://commondatastorage.googleapis.com/gtv-wolfpack_videos-bucket/sample/ElephantsDream.mp4',
-        thumbnail_url: 'https://via.placeholder.com/300x400',
+        avatar_url: '/icons/wolf-icon.png',
+        caption: 'Delicious birria tacos! Come try them today.',
+        video_url: null, // No video, use image  
+        thumbnail_url: '/food-menu-images/queso-tacos.png',
         likes_count: 73,
         wolfpack_comments_count: 12,
         shares_count: 8,
         created_at: new Date(Date.now() - 3600000).toISOString(),
         music_name: 'Original Sound',
-        hashtags: ['test', 'feed'],
+        hashtags: ['food', 'tacos'],
         view_count: 250
       }
     ];
