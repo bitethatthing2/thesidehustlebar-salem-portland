@@ -105,66 +105,24 @@ export default function TikTokStyleFeed({
     setLoadedwolfpack_videos(wolfpack_videos);
   }, [wolfpack_videos]);
 
-  // Load initial stats for wolfpack_videos - don't block rendering if this fails
+  // Use video data directly for fast rendering - skip additional stats loading
   useEffect(() => {
-    const loadStats = async () => {
-      if (!loadedwolfpack_videos?.length || !currentUser) return;
-      
-      // Load stats one by one to avoid blocking on any single failure
-      for (const video of loadedwolfpack_videos) {
-        try {
-          const stats = await wolfpackSocialService.getwolfpack_videostats(video.id, currentUser.id);
-          setwolfpack_videostats(prev => {
-            const newMap = new Map(prev);
-            newMap.set(video.id, stats);
-            return newMap;
-          });
-        } catch (error) {
-          console.warn(`Failed to load stats for video ${video.id}:`, error);
-          // Set default stats to allow rendering
-          setwolfpack_videostats(prev => {
-            const newMap = new Map(prev);
-            newMap.set(video.id, {
-              likes_count: video.likes_count || 0,
-              wolfpack_comments_count: video.wolfpack_comments_count || 0,
-              user_liked: false
-            });
-            return newMap;
-          });
-        }
-      }
-    };
+    if (!loadedwolfpack_videos?.length) return;
     
-    // Add a small delay to ensure component renders first
-    setTimeout(loadStats, 100);
-  }, [loadedwolfpack_videos, currentUser]);
+    // Initialize stats directly from video data for immediate rendering
+    const initialStats = new Map();
+    loadedwolfpack_videos.forEach(video => {
+      initialStats.set(video.id, {
+        likes_count: video.likes_count || 0,
+        wolfpack_comments_count: video.wolfpack_comments_count || 0,
+        user_liked: userLikes?.has(video.id) || false
+      });
+    });
+    setwolfpack_videostats(initialStats);
+  }, [loadedwolfpack_videos, userLikes]);
 
-  // Set up real-time subscriptions for the current video
-  useEffect(() => {
-    if (!loadedwolfpack_videos[currentIndex] || !currentUser) return;
-    
-    const currentVideo = loadedwolfpack_videos[currentIndex];
-    const unsubscribe = wolfpackSocialService.subscribeTowolfpack_videostats(
-      currentVideo.id,
-      (stats) => {
-        setwolfpack_videostats(prev => {
-          const newMap = new Map(prev);
-          newMap.set(currentVideo.id, stats);
-          return newMap;
-        });
-      },
-      currentUser.id
-    );
-    
-    return unsubscribe;
-  }, [currentIndex, loadedwolfpack_videos, currentUser]);
-
-  // Cleanup subscriptions on unmount
-  useEffect(() => {
-    return () => {
-      wolfpackSocialService.cleanup();
-    };
-  }, []);
+  // Real-time subscriptions disabled for faster loading
+  // TODO: Re-enable after optimizing performance
 
   // Set up Intersection Observer for infinite loading
   useEffect(() => {
@@ -203,38 +161,40 @@ export default function TikTokStyleFeed({
     };
   }, [onLoadMore, hasMore, isLoadingMore]);
 
-  // Auto-play current video only after user interaction
+  // Auto-play current video and load adjacent videos lazily
   useEffect(() => {
     const currentVideo = videoRefs.current[currentIndex];
+    
+    // Load video sources for current and adjacent videos
+    videoRefs.current.forEach((video, index) => {
+      if (video && Math.abs(index - currentIndex) <= 1) {
+        const videoData = loadedwolfpack_videos[index];
+        if (videoData?.video_url && !video.src) {
+          video.src = videoData.video_url;
+          video.load();
+        }
+      }
+    });
+    
+    // Play current video
     if (currentVideo && userInteracted) {
       currentVideo.play().catch((error) => {
-        // Check if it's an autoplay policy violation
         if (error.name === 'NotAllowedError') {
           console.info('Video autoplay blocked by browser policy - user interaction required');
-          // Don't retry for autoplay policy violations
           return;
         }
-        
         console.warn('Video playback failed:', error);
-        // Only retry for non-autoplay errors
-        setTimeout(() => {
-          currentVideo.play().catch((e) => {
-            if (e.name !== 'NotAllowedError') {
-              console.error('Video playback retry failed:', e);
-            }
-          });
-        }, 100);
       });
     }
 
-    // Pause all other wolfpack_videos
+    // Pause all other videos
     videoRefs.current.forEach((video, index) => {
       if (video && index !== currentIndex) {
         video.pause();
         video.currentTime = 0;
       }
     });
-  }, [currentIndex, userInteracted]);
+  }, [currentIndex, userInteracted, loadedwolfpack_videos]);
 
   // Handle scroll with snap behavior
   const handleScroll = useCallback(() => {
@@ -520,13 +480,13 @@ export default function TikTokStyleFeed({
              !video.video_url.includes('test') ? (
               <video
                 ref={(el) => (videoRefs.current[index] = el)}
-                src={video.video_url}
+                src={Math.abs(index - currentIndex) <= 1 ? video.video_url : undefined}
                 poster={video.thumbnail_url}
                 className="absolute inset-0 w-full h-full object-cover"
                 loop
                 muted={muted}
                 playsInline
-                preload="metadata"
+                preload={Math.abs(index - currentIndex) <= 1 ? "metadata" : "none"}
                 crossOrigin="anonymous"
                 style={{ objectFit: 'cover' }}
                 onClick={handleVideoClick}
@@ -561,6 +521,9 @@ export default function TikTokStyleFeed({
                   fill
                   className="object-cover"
                   onClick={handleVideoClick}
+                  priority={index === currentIndex}
+                  loading={Math.abs(index - currentIndex) <= 1 ? "eager" : "lazy"}
+                  quality={75}
                 />
                 {/* Only show play icon if this is actually a video (has video_url) */}
                 {video.video_url && (
