@@ -56,7 +56,7 @@ export default function VideoDetailPage() {
         // Check if user liked this video
         if (user) {
           const { data: likeData } = await supabase
-            .from('wolfpack_likes')
+            .from('wolfpack_post_likes')
             .select('id')
             .eq('user_id', user.id)
             .eq('video_id', videoId)

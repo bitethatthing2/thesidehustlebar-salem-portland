@@ -39,7 +39,7 @@ export class WolfpackFeedServiceEnhanced {
             display_name,
             avatar_url
           ),
-          wolfpack_likes(count),
+          wolfpack_post_likes(count),
           wolfpack_comments(count)
         `)
         .eq("is_active", true)
@@ -56,8 +56,8 @@ export class WolfpackFeedServiceEnhanced {
         ...post,
         username: post.users?.display_name || "Anonymous",
         avatar_url: post.users?.avatar_url || undefined,
-        likes_count: Array.isArray(post.wolfpack_likes)
-          ? post.wolfpack_likes.length
+        likes_count: Array.isArray(post.wolfpack_post_likes)
+          ? post.wolfpack_post_likes.length
           : 0,
         wolfpack_comments_count: Array.isArray(post.wolfpack_comments)
           ? post.wolfpack_comments.length
@@ -101,9 +101,9 @@ export class WolfpackFeedServiceEnhanced {
             display_name,
             avatar_url
           ),
-          wolfpack_likes(count),
+          wolfpack_post_likes(count),
           wolfpack_comments(count),
-          user_likes:wolfpack_likes!inner(user_id)
+          user_likes:wolfpack_post_likes!inner(user_id)
         `)
         .eq("is_active", true)
         .eq("user_likes.user_id", currentUserId)
@@ -120,8 +120,8 @@ export class WolfpackFeedServiceEnhanced {
         ...post,
         username: post.users?.display_name || "Anonymous",
         avatar_url: post.users?.avatar_url || undefined,
-        likes_count: Array.isArray(post.wolfpack_likes)
-          ? post.wolfpack_likes.length
+        likes_count: Array.isArray(post.wolfpack_post_likes)
+          ? post.wolfpack_post_likes.length
           : 0,
         wolfpack_comments_count: Array.isArray(post.wolfpack_comments)
           ? post.wolfpack_comments.length
@@ -167,7 +167,7 @@ export class WolfpackFeedServiceEnhanced {
     try {
       // Check if already liked
       const { data: existingLike } = await supabase
-        .from("wolfpack_likes")
+        .from("wolfpack_post_likes")
         .select("id")
         .eq("video_id", postId)
         .eq("user_id", userId)
@@ -176,7 +176,7 @@ export class WolfpackFeedServiceEnhanced {
       if (existingLike) {
         // Unlike
         const { error } = await supabase
-          .from("wolfpack_likes")
+          .from("wolfpack_post_likes")
           .delete()
           .eq("video_id", postId)
           .eq("user_id", userId);
@@ -186,7 +186,7 @@ export class WolfpackFeedServiceEnhanced {
       } else {
         // Like
         const { error } = await supabase
-          .from("wolfpack_likes")
+          .from("wolfpack_post_likes")
           .insert({
             video_id: postId,
             user_id: userId,
