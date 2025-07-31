@@ -55,7 +55,7 @@ export function useFeedItems(options: PaginationOptions = {}) {
     queryKey: WOLFPACK_QUERY_KEYS.feedItems(options),
     queryFn: () => WolfpackFeedService.fetchFeedItems(options),
     staleTime: 2 * 60 * 1000, // 2 minutes - feed data can get stale quickly
-    cacheTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: true, // Refresh feed when user comes back
     keepPreviousData: true, // Keep previous data while loading new page
   });
@@ -80,7 +80,7 @@ export function useInfiniteFeedWithCursor(
       }),
     getNextPageParam: (lastPage) => lastPage.nextCursor || undefined,
     staleTime: 2 * 60 * 1000, // 2 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes - keep more pages cached
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep more pages cached
     refetchOnWindowFocus: false, // Don't refetch on focus for infinite scroll
     keepPreviousData: true,
   });
@@ -95,7 +95,7 @@ export function useFollowingFeed(currentUserId: string, options: PaginationOptio
     queryFn: () => WolfpackFeedService.fetchFollowingFeed(currentUserId, options),
     enabled: !!currentUserId, // Only run if we have a user ID
     staleTime: 3 * 60 * 1000, // 3 minutes - following feed can be slightly more stable
-    cacheTime: 10 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     keepPreviousData: true,
   });
 }
@@ -109,7 +109,7 @@ export function useSearchPosts(query: string, options: PaginationOptions = {}) {
     queryFn: () => WolfpackFeedService.searchPosts(query, options),
     enabled: query.trim().length > 2, // Only search if query is longer than 2 chars
     staleTime: 5 * 60 * 1000, // 5 minutes - search results can be cached longer
-    cacheTime: 10 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     keepPreviousData: true,
   });
 }
@@ -140,7 +140,7 @@ export function usePostStats(postId: string) {
     queryFn: () => WolfpackFeedService.getPostStats(postId),
     enabled: !!postId,
     staleTime: 30 * 1000, // 30 seconds - stats change frequently
-    cacheTime: 2 * 60 * 1000,
+    gcTime: 2 * 60 * 1000,
     refetchInterval: 30 * 1000, // Auto-refresh every 30 seconds if active
   });
 }
@@ -154,7 +154,7 @@ export function useUserPosts(userId: string, options: PaginationOptions = {}) {
     queryFn: () => WolfpackFeedService.getUserPosts(userId, options),
     enabled: !!userId,
     staleTime: 2 * 60 * 1000,
-    cacheTime: 10 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     keepPreviousData: true,
   });
 }

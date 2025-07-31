@@ -1,7 +1,7 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+// import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState } from 'react';
 
 // Optimized query client configuration for Wolfpack Feed
@@ -12,7 +12,7 @@ function makeQueryClient() {
         // Cache feed data for 5 minutes
         staleTime: 5 * 60 * 1000,
         // Keep cached data for 10 minutes after becoming stale
-        cacheTime: 10 * 60 * 1000,
+        gcTime: 10 * 60 * 1000,
         // Retry failed requests 2 times with exponential backoff
         retry: 2,
         retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
@@ -53,23 +53,19 @@ interface QueryProviderProps {
 }
 
 export function QueryProvider({ children }: QueryProviderProps) {
-  // NOTE: Avoid useState when initializing the query client if you don't
-  // have a suspense boundary between this and the code that may
-  // suspend because React will throw away the client on the initial
-  // render if it suspends and there is no boundary
-  const queryClient = getQueryClient();
+  // Safe error boundary for QueryProvider
+  try {
+    const queryClient = getQueryClient();
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      {/* Only show devtools in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <ReactQueryDevtools 
-          initialIsOpen={false} 
-          position="bottom-right"
-          buttonPosition="bottom-right"
-        />
-      )}
-    </QueryClientProvider>
-  );
+    return (
+      <QueryClientProvider client={queryClient}>
+        {children}
+        {/* DevTools temporarily disabled for debugging */}
+      </QueryClientProvider>
+    );
+  } catch (error) {
+    // Fallback if React Query fails - don't break the app
+    console.warn('QueryProvider failed to initialize, falling back to children only:', error);
+    return <>{children}</>;
+  }
 }
