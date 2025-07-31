@@ -102,14 +102,14 @@ export function useDJDashboard(location?: LocationKey) {
             .order('created_at', { ascending: false })
 
           if (error && error.code === '42501') {
-            console.warn('DJ broadcasts table access denied - using mock data:', error)
+            console.warn('DJ broadcasts table access denied:', error)
           } else if (error) {
             console.warn('Error fetching broadcasts:', error)
           } else {
             broadcasts = data || []
           }
         } catch (err) {
-          console.warn('Broadcast fetch failed - using mock data:', err)
+          console.warn('Broadcast fetch failed:', err)
         }
       }
 

@@ -83,10 +83,8 @@ export class ProfileImageManager {
       // 5. Call the replacement function
       console.log('🔄 Replacing profile image in database...');
       const { data, error } = await this.supabase.rpc('replace_user_profile_image', {
-        p_user_id: userId,
-        p_new_image_url: publicUrl,
-        p_new_storage_path: storagePath,
-        p_delete_old: deleteOld
+        new_image_url_param: publicUrl,
+        new_image_id_param: null
       });
 
       if (error) {

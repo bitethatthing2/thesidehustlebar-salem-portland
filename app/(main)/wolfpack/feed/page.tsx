@@ -2,20 +2,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLikeVideo } from '@/lib/hooks/useLikeVideo';
-import { getAppUserId } from '@/lib/utils/auth-helpers';
+import { wolfpackService } from '@/lib/services/unified-wolfpack.service';
 import TikTokStyleFeed from '@/components/wolfpack/feed/TikTokStyleFeed';
 import { PostCreator } from '@/components/wolfpack/PostCreator';
 import ShareModal from '@/components/wolfpack/ShareModal';
+import VideoComments from '@/components/wolfpack/VideoCommentsOptimized';
 import { Loader2, Shield, Sparkles, MapPin } from 'lucide-react';
 
 export default function OptimizedWolfpackFeedPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { currentUser, user: authUser, isAuthenticated, loading: authLoading } = useAuth();
-  const { toggleLike, loading: likingVideo } = useLikeVideo();
+  const [likingVideo, setLikingVideo] = useState<string | null>(null);
   
   // Debug user info
   useEffect(() => {
@@ -40,163 +39,67 @@ export default function OptimizedWolfpackFeedPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userLikes, setUserLikes] = useState(new Set<string>());
-  const [appUserId, setAppUserId] = useState<string | null>(null);
 
-  // Create sample data to ensure the feed works
-  const createSampleData = () => {
-    return [
-      {
-        id: '1',
-        user_id: 'sample-user',
-        username: 'WolfPack Member',
-        avatar_url: '/icons/wolf-icon.png',
-        caption: 'Welcome to the Wolf Pack! Check out our amazing food and drinks.',
-        video_url: null, // No video, use image
-        thumbnail_url: '/images/entertainment-hero.jpg',
-        likes_count: 42,
-        wolfpack_comments_count: 5,
-        shares_count: 2,
-        created_at: new Date().toISOString(),
-        music_name: 'Original Sound',
-        hashtags: ['wolfpack', 'food'],
-        view_count: 100
-      },
-      {
-        id: '2',
-        user_id: 'sample-user-2',
-        username: 'Pack Leader',
-        avatar_url: '/icons/wolf-icon.png',
-        caption: 'Delicious birria tacos! Come try them today.',
-        video_url: null, // No video, use image  
-        thumbnail_url: '/food-menu-images/queso-tacos.png',
-        likes_count: 73,
-        wolfpack_comments_count: 12,
-        shares_count: 8,
-        created_at: new Date(Date.now() - 3600000).toISOString(),
-        music_name: 'Original Sound',
-        hashtags: ['food', 'tacos'],
-        view_count: 250
-      }
-    ];
-  };
-
-  // Optimized fast feed loading - single strategy approach
+  // Clean, simple feed loading using unified service
   const loadFeed = useCallback(async () => {
+    if (!isAuthenticated || !currentUser) {
+      console.log('[FEED] Not authenticated, skipping feed load');
+      return;
+    }
+
     try {
+      console.log('[FEED] Loading feed for authenticated user...');
       setLoading(true);
       setError(null);
       
-      // Single optimized query with minimal data and fast timeout
-      const { data: videoData, error: videoError } = await Promise.race([
-        supabase
-          .from('wolfpack_videos')
-          .select(`
-            id,
-            user_id,
-            caption,
-            video_url,
-            thumbnail_url,
-            like_count,
-            comment_count,
-            created_at,
-            users!user_id (
-              display_name,
-              username,
-              avatar_url
-            )
-          `)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(10), // Reduced to 10 for faster loading
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Query timeout')), 2000) // 2 second timeout
-        )
-      ]);
-
-      if (!videoError && videoData && videoData.length > 0) {
-        // Fast transformation with minimal processing
-        const transformedVideos = videoData.map(video => ({
-          id: video.id,
-          user_id: video.user_id,
-          username: video.users?.display_name || video.users?.username || 'User',
-          avatar_url: video.users?.avatar_url || '/icons/wolf-icon.png',
-          caption: video.caption || '',
-          video_url: video.video_url,
-          thumbnail_url: video.thumbnail_url || '/images/entertainment-hero.jpg',
-          likes_count: video.like_count || 0,
-          wolfpack_comments_count: video.comment_count || 0,
-          shares_count: 0,
-          created_at: video.created_at,
-          music_name: 'Original Sound',
-          hashtags: [],
-          view_count: 0
-        }));
-        
-        setwolfpack_videos(transformedVideos);
+      const response = await wolfpackService.getFeedVideos(15);
+      
+      if (!response.success) {
+        setError(response.error || 'Failed to load feed');
         return;
       }
 
-      // Immediate fallback to sample data - no more strategies
-      console.log('[FEED] No data found, showing sample content');
-      setwolfpack_videos(createSampleData());
+      const videos = response.data || [];
+      console.log(`[FEED] Loaded ${videos.length} videos`);
+      
+      // Transform for component compatibility
+      const transformedVideos = videos.map(video => ({
+        id: video.id,
+        user_id: video.user_id,
+        username: wolfpackService.getDisplayName(video.users || {} as any),
+        avatar_url: wolfpackService.getAvatarUrl(video.users || {} as any),
+        caption: video.caption || '',
+        video_url: video.video_url,
+        thumbnail_url: video.thumbnail_url,
+        likes_count: video.like_count || 0,
+        wolfpack_comments_count: video.comment_count || 0,
+        shares_count: 0,
+        created_at: video.created_at,
+        music_name: 'Original Sound',
+        hashtags: [],
+        view_count: 0,
+        location_tag: video.location_tag
+      }));
+      
+      setwolfpack_videos(transformedVideos);
       
     } catch (err) {
-      console.log('[FEED] Query failed, using sample data');
-      setwolfpack_videos(createSampleData());
+      console.error('[FEED] Unexpected error:', err);
+      setError(`Failed to load videos: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Get current user's app ID
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      if (authUser) {
-        const userId = await getAppUserId(supabase);
-        setAppUserId(userId);
-      }
-    };
-    getCurrentUser();
-  }, [authUser]);
-
-  // Load user's liked videos with timeout for faster loading
-  const loadUserLikes = useCallback(async () => {
-    if (!appUserId) return;
-
-    try {
-      const { data, error } = await Promise.race([
-        supabase
-          .from('wolfpack_post_likes')
-          .select('video_id')
-          .eq('user_id', appUserId)
-          .limit(50), // Limit for faster query
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Likes query timeout')), 1000)
-        )
-      ]);
-
-      if (!error && data) {
-        setUserLikes(new Set(data.map(like => like.video_id)));
-      }
-    } catch (err) {
-      console.log('Skipping likes load for faster performance');
-      // Don't block the UI if likes can't load quickly
-    }
-  }, [appUserId]);
+  }, [isAuthenticated, currentUser]);
 
   useEffect(() => {
     loadFeed();
   }, [loadFeed]);
 
-  useEffect(() => {
-    if (appUserId) {
-      loadUserLikes();
-    }
-  }, [appUserId, loadUserLikes]);
-
   const [showPostCreator, setShowPostCreator] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareVideoData, setShareVideoData] = useState<{ id: string; caption?: string; username?: string } | null>(null);
+  const [showComments, setShowComments] = useState(false);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
   // Check if camera should be opened on mount
   useEffect(() => {
@@ -227,23 +130,24 @@ export default function OptimizedWolfpackFeedPage() {
 
   // Handle like/unlike
   const handleLike = useCallback(async (videoId: string) => {
-    if (!appUserId) {
-      alert('Please log in to like wolfpack_videos');
+    const response = await wolfpackService.toggleLike(videoId);
+    
+    // If authentication required, redirect smoothly
+    if (!response.success && response.error?.includes('Authentication required')) {
+      router.push('/login');
       return;
     }
-
-    const isLiked = userLikes.has(videoId);
     
-    const { success } = await toggleLike(videoId, isLiked);
-    
-    if (success) {
+    if (response.success) {
+      const isLiked = userLikes.has(videoId);
+      
       // Update local state
       setUserLikes(prev => {
         const newLikes = new Set(prev);
-        if (isLiked) {
-          newLikes.delete(videoId);
-        } else {
+        if (response.data?.liked) {
           newLikes.add(videoId);
+        } else {
+          newLikes.delete(videoId);
         }
         return newLikes;
       });
@@ -253,53 +157,36 @@ export default function OptimizedWolfpackFeedPage() {
         video.id === videoId 
           ? { 
               ...video, 
-              likes_count: isLiked 
-                ? Math.max(0, (video.likes_count || 0) - 1)
-                : (video.likes_count || 0) + 1,
-              like_count: isLiked 
-                ? Math.max(0, (video.like_count || 0) - 1)
-                : (video.like_count || 0) + 1
+              likes_count: response.data?.liked 
+                ? (video.likes_count || 0) + 1
+                : Math.max(0, (video.likes_count || 0) - 1)
             }
           : video
       ));
     }
-  }, [appUserId, userLikes, toggleLike]);
+  }, [router, userLikes]);
 
-  // Handle comment navigation
+  // Handle comments - open modal instead of navigating
   const handleComment = useCallback((videoId: string) => {
-    // Navigate to video detail page with wolfpack_comments open
-    router.push(`/wolfpack/video/${videoId}?wolfpack_comments=true`);
-  }, [router]);
+    setActiveVideoId(videoId);
+    setShowComments(true);
+  }, []);
 
   // Handle video deletion
   const handleDelete = useCallback(async (videoId: string) => {
-    if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this video? This action cannot be undone.') || !currentUser) {
       return;
     }
 
-    try {
-      const { data, error } = await supabase.rpc('delete_my_video', { 
-        video_id: videoId 
-      });
-
-      if (error) {
-        console.error('Error deleting video:', error);
-        alert('Failed to delete video: ' + error.message);
-        return;
-      }
-
-      if (data && data.success) {
-        // Remove video from local state
-        setwolfpack_videos(prevVideos => prevVideos.filter(v => v.id !== videoId));
-        alert('Video deleted successfully');
-      } else {
-        alert('Failed to delete video: ' + (data?.error || 'Unknown error'));
-      }
-    } catch (err) {
-      console.error('Exception deleting video:', err);
-      alert('Failed to delete video');
+    const response = await wolfpackService.deleteVideo(videoId);
+    
+    if (response.success) {
+      setwolfpack_videos(prevVideos => prevVideos.filter(v => v.id !== videoId));
+      alert('Video deleted successfully');
+    } else {
+      alert('Failed to delete video: ' + response.error);
     }
-  }, [supabase]);
+  }, [currentUser]);
 
 
 
@@ -381,8 +268,9 @@ export default function OptimizedWolfpackFeedPage() {
         onCreatePost={() => setShowPostCreator(true)}
         onLoadMore={() => {}}
         hasMore={false}
-        isLoading={likingVideo}
+        isLoading={!!likingVideo}
         userLikes={userLikes}
+        initialVideoId={searchParams.get('videoId') || undefined}
       />
       
       <PostCreator
@@ -404,6 +292,26 @@ export default function OptimizedWolfpackFeedPage() {
         caption={shareVideoData?.caption}
         username={shareVideoData?.username}
       />
+
+      {activeVideoId && (
+        <VideoComments
+          postId={activeVideoId}
+          isOpen={showComments}
+          onClose={() => {
+            setShowComments(false);
+            setActiveVideoId(null);
+          }}
+          initialCommentCount={0}
+          onCommentCountChange={(count) => {
+            // Update comment count in local state if needed
+            setwolfpack_videos(prev => prev.map(video => 
+              video.id === activeVideoId 
+                ? { ...video, wolfpack_comments_count: count }
+                : video
+            ));
+          }}
+        />
+      )}
     </>
   );
 }

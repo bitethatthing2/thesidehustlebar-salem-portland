@@ -210,7 +210,7 @@ export function useMediaUpload(): UseMediaUploadReturn {
             duration: recordingMode === "video" ? recordingTime : null,
             view_count: 0,
             like_count: 0,
-            wolfpack_comments_count: 0,
+            comment_count: 0,
           })
           .select()
           .single();

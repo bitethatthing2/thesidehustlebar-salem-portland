@@ -185,71 +185,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
 
-  // Ensure user profile exists in database
-  const ensureUserProfile = useCallback(async (authUser: User) => {
-    try {
-      const { data: existingUser } = await supabase
-        .from('users')
-        .select('id')
-        .eq('auth_id', authUser.id)
-        .single();
 
-      if (!existingUser) {
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            auth_id: authUser.id,
-            email: authUser.email!,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-
-        if (insertError) {
-          console.error('[AUTH] Error creating user profile:', insertError);
-          throw insertError;
-        }
-      }
-    } catch (err) {
-      console.error('[AUTH] Error ensuring user profile:', err);
-      throw err;
-    }
-  }, []);
-
-  // Fetch complete user profile
+  // Simplified, non-blocking user profile fetch
   const fetchUserProfile = useCallback(async (authUser: User): Promise<CurrentUser | null> => {
     if (!authUser?.id) return null;
 
     try {
-      await ensureUserProfile(authUser);
-
-      // Try to get from view first, fall back to direct table query
-      const { data: profile, error: profileError } = await supabase
-        .from('current_user_profile')
+      // Skip profile creation for faster loading - just get existing profile
+      const { data: profile, error } = await supabase
+        .from('users')
         .select('*')
+        .eq('auth_id', authUser.id)
         .single();
 
-      if (profileError) {
-        const { data: directProfile, error: directError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('auth_id', authUser.id)
-          .single();
+      if (error) {
+        // If no profile exists, create minimal one without blocking
+        if (error.code === 'PGRST116') {
+          console.log('[AUTH] Creating minimal profile for user');
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              auth_id: authUser.id,
+              email: authUser.email!,
+              wolfpack_status: 'pending',
+              location: 'florida_state',
+              state: 'Florida',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
 
-        if (directError) throw directError;
+          if (insertError) {
+            console.error('[AUTH] Error creating profile:', insertError);
+            // Return basic user object even if profile creation fails
+            return {
+              id: authUser.id,
+              email: authUser.email!,
+              authId: authUser.id,
+              role: 'user',
+              wolfEmoji: '🐺',
+              verified: false,
+              isVip: false,
+              wolfpackStatus: 'pending',
+              wolfpackTier: 'basic',
+              businessAccount: false,
+              artistAccount: false,
+              locationVerified: false,
+              privacySettings: {
+                acceptWinks: true,
+                showLocation: true,
+                acceptMessages: true,
+                profileVisible: true
+              },
+              notificationPreferences: {
+                events: true,
+                marketing: false,
+                announcements: true,
+                chatMessages: true,
+                orderUpdates: true,
+                memberActivity: true,
+                socialInteractions: true
+              },
+              isOnline: false,
+              status: 'active',
+              loyaltyScore: 0,
+              packBadges: {},
+              packAchievements: {},
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            } as CurrentUser;
+          }
+          
+          // Fetch the newly created profile
+          const { data: newProfile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('auth_id', authUser.id)
+            .single();
+          
+          if (newProfile) {
+            return transformDatabaseUser(newProfile as DatabaseUser, authUser);
+          }
+        }
         
-        return transformDatabaseUser(directProfile as DatabaseUser, authUser);
-      } else {
-        return transformDatabaseUser(profile as DatabaseUser, authUser);
+        console.error('[AUTH] Error fetching profile:', error);
+        return null;
       }
+
+      return transformDatabaseUser(profile as DatabaseUser, authUser);
     } catch (err) {
-      if (err instanceof Error && err.message !== 'Auth session missing!') {
-        console.error('[AUTH] Error fetching user profile:', err);
-        setError(err as Error);
-      }
+      console.error('[AUTH] Error in fetchUserProfile:', err);
       return null;
     }
-  }, [ensureUserProfile]);
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -302,79 +331,84 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser, refresh]);
 
+  // Fast, non-blocking auth initialization
   useEffect(() => {
-    if (!supabase) {
-      console.error("[AUTH] Supabase client is not initialized. Check your environment variables.");
-      setLoading(false);
-      return;
-    }
+    let mounted = true;
 
-    setLoading(true);
+    const quickAuthCheck = async () => {
+      try {
+        console.log('[AUTH] Quick auth check starting...');
+        
+        // Fast session check
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
 
+        setSession(session);
+        setLoading(false);
+        setIsReady(true);
+        setAuthChecked(true);
+
+        // If there's a session, fetch profile in background (non-blocking)
+        if (session?.user) {
+          console.log('[AUTH] User found, fetching profile in background...');
+          fetchUserProfile(session.user).then(profile => {
+            if (mounted) {
+              setCurrentUser(profile);
+            }
+          }).catch(err => {
+            console.error('[AUTH] Background profile fetch failed:', err);
+            // Don't block the UI for profile fetch errors
+          });
+        } else {
+          console.log('[AUTH] No session found');
+          setCurrentUser(null);
+        }
+      } catch (err) {
+        console.error('[AUTH] Quick auth check failed:', err);
+        if (mounted) {
+          setError(err as Error);
+          setLoading(false);
+          setIsReady(true);
+        }
+      }
+    };
+
+    quickAuthCheck();
+
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        console.log('[AUTH] Auth state change:', event, !!session);
+        
+        if (!mounted) return;
+
         setSession(session);
         setError(null);
         
-        if (session?.user) {
-          const profile = await fetchUserProfile(session.user);
-          setCurrentUser(profile);
-        } else {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Non-blocking profile fetch
+          fetchUserProfile(session.user).then(profile => {
+            if (mounted) setCurrentUser(profile);
+          });
+        } else if (event === 'SIGNED_OUT') {
           setCurrentUser(null);
         }
-        
-        setLoading(false);
       }
     );
 
-    const handleFocus = async () => {
-      await supabase.auth.refreshSession();
-    };
-    window.addEventListener('focus', handleFocus);
-
     return () => {
+      mounted = false;
       subscription.unsubscribe();
-      window.removeEventListener('focus', handleFocus);
     };
   }, [fetchUserProfile]);
 
-  // Update isReady state
+  // Simplified ready state - no complex dependencies
   useEffect(() => {
-    if (!loading) {
-      if (!session?.user) {
-        setIsReady(true);
-      } else if (currentUser) {
-        setIsReady(true);
-      } else if (error) {
-        setIsReady(true);
-      }
+    if (!loading && isReady) {
+      console.log('[AUTH] Auth system ready');
     }
-  }, [loading, session?.user, currentUser, error]);
-
-  // Set up real-time subscription for user updates
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const userSubscription = supabase
-      .channel(`user-updates-${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'users',
-          filter: `id=eq.${currentUser.id}`
-        },
-        () => {
-          refresh();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      userSubscription.unsubscribe();
-    };
-  }, [currentUser?.id, refresh]);
+  }, [loading, isReady]);
 
   const user = session?.user ?? null;
   const isAuthenticated = !!user && !!session;

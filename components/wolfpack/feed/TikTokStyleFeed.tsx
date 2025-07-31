@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Heart, MessageCircle, Share2, Music, Play, Volume2, VolumeX, Search, Plus, UserPlus, Users, Home, ShoppingBag, Mail, User, MoreHorizontal, Trash2, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Music, Play, Volume2, VolumeX, Search, Plus, UserPlus, Users, Home, ShoppingBag, Mail, User, MoreHorizontal, Trash2, Loader2, Send } from 'lucide-react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import VideoComments from '@/components/wolfpack/VideoComments';
+import VideoComments from '@/components/wolfpack/VideoCommentsOptimized';
 import FindFriends from '@/components/wolfpack/FindFriends';
-import { wolfpackSocialService } from '@/lib/services/wolfpack';
+import { wolfpackService } from '@/lib/services/unified-wolfpack.service';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/components/ui/use-toast';
 
@@ -40,6 +40,7 @@ interface TikTokStyleFeedProps {
   hasMore?: boolean;
   isLoading?: boolean;
   userLikes?: Set<string>;
+  initialVideoId?: string;
 }
 
 export default function TikTokStyleFeed({
@@ -54,11 +55,18 @@ export default function TikTokStyleFeed({
   onLoadMore,
   hasMore = false,
   isLoading = false,
-  userLikes
+  userLikes,
+  initialVideoId
 }: TikTokStyleFeedProps) {
   const router = useRouter();
   const { currentUser: loggedInUser, authUser, isAuthenticated } = useAuth()
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(() => {
+    if (initialVideoId) {
+      const index = wolfpack_videos.findIndex(video => video.id === initialVideoId);
+      return index >= 0 ? index : 0;
+    }
+    return 0;
+  });
   const [muted, setMuted] = useState(false);
   const [userInteracted, setUserInteracted] = useState(false);
 
@@ -316,7 +324,7 @@ export default function TikTokStyleFeed({
     });
 
     // Update server
-    const result = await wolfpackSocialService.toggleFollow(currentUser.id, userId);
+    const result = await wolfpackService.toggleFollow(userId);
     
     if (!result.success) {
       // Revert on error
@@ -761,12 +769,12 @@ export default function TikTokStyleFeed({
             </div>
           </button>
           
-          <button className="flex flex-col items-center space-y-1 relative">
-            <Mail className="w-6 h-6 text-white/70" />
-            <span className="text-xs text-white/70">Inbox</span>
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-              <span className="text-xs text-white font-bold">11</span>
-            </div>
+          <button 
+            onClick={() => router.push('/messages')}
+            className="flex flex-col items-center space-y-1 relative"
+          >
+            <Send className="w-6 h-6 text-white" />
+            <span className="text-xs text-white">DM</span>
           </button>
           
           <button 

@@ -179,7 +179,7 @@ async function handleCommentAction(
         video_id: videoId,
         user_id: userId,
         content: content.trim(),
-        parent_id: parentId || null,
+        parent_comment_id: parentId || null,
       })
       .select(`
         id,

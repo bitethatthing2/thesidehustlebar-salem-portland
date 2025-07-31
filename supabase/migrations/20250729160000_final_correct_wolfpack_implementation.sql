@@ -21,7 +21,7 @@ CREATE TABLE wolfpack_comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   video_id UUID NOT NULL REFERENCES wolfpack_videos(id) ON DELETE CASCADE,
-  parent_id UUID REFERENCES wolfpack_comments(id) ON DELETE CASCADE,
+  parent_comment_id UUID REFERENCES wolfpack_comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 500),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -33,7 +33,7 @@ CREATE INDEX idx_wolfpack_post_likes_video_id ON wolfpack_post_likes(video_id);
 CREATE INDEX idx_wolfpack_post_likes_user_id ON wolfpack_post_likes(user_id);
 CREATE INDEX idx_wolfpack_comments_video_id ON wolfpack_comments(video_id);
 CREATE INDEX idx_wolfpack_comments_user_id ON wolfpack_comments(user_id);
-CREATE INDEX idx_wolfpack_comments_parent_id ON wolfpack_comments(parent_id) WHERE parent_id IS NOT NULL;
+CREATE INDEX idx_wolfpack_comments_parent_comment_id ON wolfpack_comments(parent_comment_id) WHERE parent_comment_id IS NOT NULL;
 
 -- Enable Row Level Security
 ALTER TABLE wolfpack_post_likes ENABLE ROW LEVEL SECURITY;

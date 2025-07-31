@@ -8272,7 +8272,7 @@ $$;
 ALTER FUNCTION "public"."create_broadcast_from_template"("p_template_id" "uuid", "p_dj_id" "uuid", "p_location_id" "uuid", "p_customizations" "jsonb") OWNER TO "postgres";
 
 
-CREATE OR REPLACE FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_id" "uuid" DEFAULT NULL::"uuid") RETURNS "jsonb"
+CREATE OR REPLACE FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_comment_id" "uuid" DEFAULT NULL::"uuid") RETURNS "jsonb"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public', 'pg_catalog', 'pg_temp'
     AS $$
@@ -8282,8 +8282,8 @@ DECLARE
 BEGIN
   v_user_id := auth.uid();
   
-  INSERT INTO public.wolfpack_comments (video_id, content, parent_id, user_id)
-  VALUES (p_video_id, p_content, p_parent_id, v_user_id)
+  INSERT INTO public.wolfpack_comments (video_id, content, parent_comment_id, user_id)
+  VALUES (p_video_id, p_content, p_parent_comment_id, v_user_id)
   RETURNING id INTO v_comment_id;
   
   RETURN jsonb_build_object('id', v_comment_id, 'success', true);
@@ -8291,7 +8291,7 @@ END;
 $$;
 
 
-ALTER FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_id" "uuid") OWNER TO "postgres";
+ALTER FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_comment_id" "uuid") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."create_community_event"("p_title" "text", "p_description" "text", "p_start_time" timestamp with time zone, "p_end_time" timestamp with time zone, "p_location_id" "uuid" DEFAULT NULL::"uuid", "p_max_attendees" integer DEFAULT NULL::integer, "p_is_pack_only" boolean DEFAULT false, "p_pack_id" "uuid" DEFAULT NULL::"uuid") RETURNS "jsonb"
@@ -36473,7 +36473,7 @@ CREATE INDEX "refresh_tokens_instance_id_user_id_idx" ON "auth"."refresh_tokens"
 
 
 
-CREATE INDEX "refresh_tokens_parent_idx" ON "auth"."refresh_tokens" USING "btree" ("parent");
+CREATE INDEX "refresh_tokens_parent_comment_idx" ON "auth"."refresh_tokens" USING "btree" ("parent");
 
 
 
@@ -39845,9 +39845,9 @@ GRANT ALL ON FUNCTION "public"."create_broadcast_from_template"("p_template_id" 
 
 
 
-GRANT ALL ON FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_id" "uuid") TO "authenticated";
-GRANT ALL ON FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_id" "uuid") TO "service_role";
+GRANT ALL ON FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_comment_id" "uuid") TO "anon";
+GRANT ALL ON FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_comment_id" "uuid") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."create_comment"("p_video_id" "uuid", "p_content" "text", "p_parent_comment_id" "uuid") TO "service_role";
 
 
 

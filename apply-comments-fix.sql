@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS wolfpack_comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   video_id UUID NOT NULL REFERENCES wolfpack_videos(id) ON DELETE CASCADE,
-  parent_id UUID REFERENCES wolfpack_comments(id) ON DELETE CASCADE,
+  parent_comment_id UUID REFERENCES wolfpack_comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 500),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
@@ -25,8 +25,8 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_wolfpack_comments_user_id') THEN
         CREATE INDEX idx_wolfpack_comments_user_id ON wolfpack_comments(user_id);
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_wolfpack_comments_parent_id') THEN
-        CREATE INDEX idx_wolfpack_comments_parent_id ON wolfpack_comments(parent_id) WHERE parent_id IS NOT NULL;
+    IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_wolfpack_comments_parent_comment_id') THEN
+        CREATE INDEX idx_wolfpack_comments_parent_comment_id ON wolfpack_comments(parent_comment_id) WHERE parent_comment_id IS NOT NULL;
     END IF;
 END $$;
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, User, Calendar, MapPin, Heart, MessageCircle } from 'lucide-react';
+import { ArrowLeft, User, Calendar, MapPin, Heart, MessageCircle, Edit } from 'lucide-react';
 import Image from 'next/image';
 
 interface UserProfile {
@@ -149,7 +149,8 @@ export default function UserProfilePage() {
   };
 
   const handlePostClick = (postId: string) => {
-    router.push(`/wolfpack/video/${postId}`);
+    // Navigate to the TikTok-style feed focused on this video
+    router.push(`/wolfpack/feed?videoId=${postId}`);
   };
 
   if (loading) {
@@ -250,19 +251,33 @@ export default function UserProfilePage() {
               </div>
             </div>
 
-            {/* Follow Button */}
-            {currentUser && currentUser.id !== userId && (
-              <button
-                onClick={handleFollow}
-                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
-                  isFollowing
-                    ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                    : 'bg-red-600 hover:bg-red-700 text-white'
-                }`}
-              >
-                {isFollowing ? 'Following' : 'Follow'}
-              </button>
-            )}
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              {/* Edit Profile Button - Only show for own profile */}
+              {currentUser && currentUser.id === userId && (
+                <button
+                  onClick={() => router.push('/profile/edit')}
+                  className="px-6 py-2 rounded-lg font-medium transition-colors bg-gray-600 hover:bg-gray-700 text-white flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit Profile
+                </button>
+              )}
+              
+              {/* Follow Button - Only show for other users */}
+              {currentUser && currentUser.id !== userId && (
+                <button
+                  onClick={handleFollow}
+                  className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                    isFollowing
+                      ? 'bg-gray-600 hover:bg-gray-700 text-white'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }`}
+                >
+                  {isFollowing ? 'Following' : 'Follow'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

@@ -124,7 +124,10 @@ export function WolfpackProfileManager() {
   const [profile, setProfile] = useState<WolfpackProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setSaving] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   
   // Form state with proper typing
   const [formData, setFormData] = useState<FormData>({

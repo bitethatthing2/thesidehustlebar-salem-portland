@@ -24,7 +24,7 @@ export interface WolfpackComment {
   id: string;
   user_id: string;
   video_id: string;
-  parent_id?: string;
+  parent_comment_id?: string;
   content: string;
   created_at: string;
   updated_at: string;
@@ -135,7 +135,7 @@ class WolfpackSocialService {
         id: comment.id,
         user_id: comment.user_id,
         video_id: comment.video_id,
-        parent_id: comment.parent_comment_id,
+        parent_comment_id: comment.parent_comment_id,
         content: comment.content,
         created_at: comment.created_at,
         updated_at: comment.updated_at || comment.created_at,
@@ -172,7 +172,7 @@ class WolfpackSocialService {
           id: comment.id,
           user_id: comment.user_id,
           video_id: comment.video_id,
-          parent_id: comment.parent_comment_id,
+          parent_comment_id: comment.parent_comment_id,
           content: comment.content,
           created_at: comment.created_at,
           updated_at: comment.updated_at || comment.created_at,

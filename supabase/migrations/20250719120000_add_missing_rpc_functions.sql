@@ -239,7 +239,7 @@ BEGIN
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
       video_id UUID NOT NULL REFERENCES public.wolfpack_videos(id) ON DELETE CASCADE,
-      parent_id UUID REFERENCES public.wolfpack_comments(id) ON DELETE CASCADE,
+      parent_comment_id UUID REFERENCES public.wolfpack_comments(id) ON DELETE CASCADE,
       content TEXT NOT NULL CHECK (length(trim(content)) > 0),
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -249,7 +249,7 @@ BEGIN
     -- Create indexes
     CREATE INDEX idx_wolfpack_comments_user ON public.wolfpack_comments(user_id);
     CREATE INDEX idx_wolfpack_comments_video ON public.wolfpack_comments(video_id);
-    CREATE INDEX idx_wolfpack_comments_parent ON public.wolfpack_comments(parent_id);
+    CREATE INDEX idx_wolfpack_comments_parent ON public.wolfpack_comments(parent_comment_id);
     CREATE INDEX idx_wolfpack_comments_created ON public.wolfpack_comments(created_at);
     
     -- Enable RLS

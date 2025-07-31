@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { X, Link, Facebook, Twitter, MessageCircle, Mail, Download } from 'lucide-react';
 import { getZIndexClass } from '@/lib/constants/z-index';
 import { toast } from '@/components/ui/use-toast';
-import { wolfpackSocialService } from '@/lib/services/wolfpack';
+import { wolfpackService } from '@/lib/services/unified-wolfpack.service';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ShareModalProps {
@@ -29,7 +29,7 @@ export default function ShareModal({ isOpen, onClose, videoId, caption, username
       
       // Track the share
       if (user) {
-        await wolfpackSocialService.trackShare(videoId, user.id, 'copy_link');
+        await wolfpackService.trackShare(videoId, user.id, 'copy_link');
       }
       
       toast({
@@ -73,7 +73,7 @@ export default function ShareModal({ isOpen, onClose, videoId, caption, username
 
     // Track the share
     if (user) {
-      await wolfpackSocialService.trackShare(videoId, user.id, platform);
+      await wolfpackService.trackShare(videoId, user.id, platform);
     }
 
     window.open(url, '_blank', 'width=600,height=600');

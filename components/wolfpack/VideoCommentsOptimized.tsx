@@ -1,16 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Input } from '@/components/ui/input';
-import { Avatar } from '@/components/ui/avatar';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  X, 
-  Send, 
+  MessageCircle, 
   Heart, 
-  MessageCircle,
-  MoreHorizontal,
-  Reply,
-  ThumbsUp
+  Send, 
+  X as XIcon,
+  Reply as ReplyIcon
 } from 'lucide-react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
@@ -19,34 +15,53 @@ import { getZIndexClass } from '@/lib/constants/z-index';
 import { toast } from '@/components/ui/use-toast';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
-interface Comment {
+// Types
+interface CommentUser {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  avatar_url?: string;
+  display_name?: string;
+  username?: string;
+  profile_image_url?: string;
+}
+
+interface SupabaseComment {
   id: string;
   user_id: string;
   video_id: string;
-  parent_id?: string;
+  parent_comment_id?: string;
   content: string;
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
-  user?: {
-    id: string;
-    first_name?: string;
-    last_name?: string;
-    avatar_url?: string;
-    display_name?: string;
-  };
-  reactions?: Array<{
-    emoji: string;
-    count: number;
-    user_reacted: boolean;
-  }>;
-  replies_count?: number;
-  replies?: Comment[];
+  is_pinned?: boolean;
+  is_edited?: boolean;
   like_count?: number;
-  user_liked?: boolean;
+  likes_count?: number;
+  users?: CommentUser | CommentUser[];
 }
 
-interface Videowolfpack_commentsOptimizedProps {
+interface Comment {
+  id: string;
+  user_id: string;
+  video_id: string;
+  parent_comment_id?: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+  is_pinned?: boolean;
+  is_edited?: boolean;
+  user?: CommentUser;
+  like_count: number;
+  user_liked: boolean;
+  reaction_count: number;
+  replies: Comment[];
+  replies_count: number;
+}
+
+interface VideoCommentsProps {
   postId: string;
   isOpen: boolean;
   onClose: () => void;
@@ -54,15 +69,177 @@ interface Videowolfpack_commentsOptimizedProps {
   onCommentCountChange: (count: number) => void;
 }
 
-export default function Videowolfpack_commentsOptimized({ 
+// Service class
+class WolfpackCommentsService {
+  private supabase = supabase;
+  
+  async fetchComments(videoId: string, currentUserId?: string) {
+    try {
+      const { data: comments, error } = await this.supabase
+        .from('wolfpack_comments')
+        .select(`
+          id,
+          user_id,
+          video_id,
+          parent_comment_id,
+          content,
+          created_at,
+          updated_at,
+          is_deleted,
+          like_count,
+          likes_count,
+          is_pinned,
+          is_edited,
+          users!inner (
+            id,
+            first_name,
+            last_name,
+            avatar_url,
+            display_name,
+            username,
+            profile_image_url
+          )
+        `)
+        .eq('video_id', videoId)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false }) as { data: SupabaseComment[] | null, error: any };
+
+      if (error) throw error;
+
+      const commentIds = (comments || []).map(c => c.id);
+      
+      if (commentIds.length === 0) return [];
+
+      const { data: reactions } = await this.supabase
+        .from('wolfpack_comment_reactions')
+        .select('comment_id, user_id, reaction_type')
+        .in('comment_id', commentIds);
+
+      const reactionMap = new Map<string, number>();
+      const userReactionsSet = new Set<string>();
+      
+      (reactions || []).forEach(reaction => {
+        const key = reaction.comment_id;
+        reactionMap.set(key, (reactionMap.get(key) || 0) + 1);
+        
+        if (currentUserId && reaction.user_id === currentUserId) {
+          userReactionsSet.add(reaction.comment_id);
+        }
+      });
+
+      const transformedComments = (comments || []).map(comment => {
+        // Handle users as either array or single object
+        const userObject = Array.isArray(comment.users) ? comment.users[0] : comment.users;
+        
+        return {
+          id: comment.id,
+          user_id: comment.user_id,
+          video_id: comment.video_id,
+          parent_comment_id: comment.parent_comment_id,
+          content: comment.content,
+          created_at: comment.created_at,
+          updated_at: comment.updated_at,
+          is_deleted: comment.is_deleted,
+          is_pinned: comment.is_pinned,
+          is_edited: comment.is_edited,
+          user: userObject ? {
+            id: userObject.id,
+            first_name: userObject.first_name,
+            last_name: userObject.last_name,
+            avatar_url: userObject.profile_image_url || userObject.avatar_url,
+            display_name: userObject.display_name,
+            username: userObject.username,
+            profile_image_url: userObject.profile_image_url
+          } : undefined,
+          like_count: comment.likes_count || comment.like_count || 0,
+          user_liked: userReactionsSet.has(comment.id),
+          reaction_count: reactionMap.get(comment.id) || 0,
+          replies: [],
+          replies_count: 0
+        };
+      });
+
+      return this.organizeCommentsIntoTree(transformedComments);
+    } catch (error) {
+      console.error('Error in fetchComments:', error);
+      throw error;
+    }
+  }
+
+  private organizeCommentsIntoTree(comments: any[]) {
+    const commentMap = new Map();
+    const rootComments: any[] = [];
+
+    comments.forEach(comment => {
+      commentMap.set(comment.id, { ...comment, replies: [] });
+    });
+
+    comments.forEach(comment => {
+      if (comment.parent_comment_id) {
+        const parent = commentMap.get(comment.parent_comment_id);
+        if (parent) {
+          parent.replies.push(commentMap.get(comment.id));
+          parent.replies_count = parent.replies.length;
+        }
+      } else {
+        rootComments.push(commentMap.get(comment.id));
+      }
+    });
+
+    rootComments.forEach(comment => {
+      this.sortReplies(comment);
+    });
+
+    return rootComments;
+  }
+
+  private sortReplies(comment: any) {
+    if (comment.replies && comment.replies.length > 0) {
+      comment.replies.sort((a: any, b: any) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      comment.replies.forEach((reply: any) => this.sortReplies(reply));
+    }
+  }
+
+  subscribeToComments(videoId: string, callback: (payload: any) => void): RealtimeChannel {
+    return this.supabase
+      .channel(`comments:${videoId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'wolfpack_comments',
+          filter: `video_id=eq.${videoId}`
+        },
+        callback
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'wolfpack_comment_reactions'
+        },
+        callback
+      )
+      .subscribe();
+  }
+}
+
+const commentsService = new WolfpackCommentsService();
+
+// Main component
+function VideoComments({ 
   postId, 
   isOpen, 
   onClose, 
   initialCommentCount, 
   onCommentCountChange 
-}: Videowolfpack_commentsOptimizedProps) {
+}: VideoCommentsProps) {
   const { user } = useAuth();
-  const [wolfpack_comments, setwolfpack_comments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -70,259 +247,100 @@ export default function Videowolfpack_commentsOptimized({
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
   const [commentCount, setCommentCount] = useState(initialCommentCount);
+  const [likingCommentId, setLikingCommentId] = useState<string | null>(null);
   
-  const inputRef = useRef<HTMLInputElement>(null);
-  const replyInputRef = useRef<HTMLInputElement>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const mountedRef = useRef(true);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const replyInputRef = useRef<HTMLInputElement>(null);
 
-  // Load wolfpack_comments with real-time subscription
-  useEffect(() => {
-    if (!isOpen || !postId) return;
-
-    const loadwolfpack_comments = async () => {
-      setLoading(true);
-      try {
-        const { data: wolfpack_commentsData, error } = await supabase
-          .from('wolfpack_comments')
-          .select(`
-            id,
-            user_id,
-            video_id,
-            parent_id,
-            content,
-            created_at,
-            updated_at,
-            is_deleted,
-            like_count,
-            users:user_id (
-              id,
-              first_name,
-              last_name,
-              avatar_url,
-              display_name
-            )
-          `)
-          .eq('video_id', postId)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        // Build threaded comment structure
-        const wolfpack_commentsMap = new Map<string, Comment>();
-        const rootwolfpack_comments: Comment[] = [];
-
-        // First pass: create all wolfpack_comments
-        wolfpack_commentsData?.forEach(comment => {
-          const processedComment: Comment = {
-            id: comment.id,
-            user_id: comment.user_id,
-            video_id: comment.video_id,
-            parent_id: comment.parent_id,
-            content: comment.content,
-            created_at: comment.created_at,
-            updated_at: comment.updated_at,
-            is_deleted: comment.is_deleted,
-            like_count: comment.like_count || 0,
-            user: comment.users ? {
-              id: comment.users.id,
-              first_name: comment.users.first_name,
-              last_name: comment.users.last_name,
-              avatar_url: comment.users.avatar_url,
-              display_name: comment.users.display_name
-            } : undefined,
-            replies: []
-          };
-
-          wolfpack_commentsMap.set(comment.id, processedComment);
-
-          if (!comment.parent_id) {
-            rootwolfpack_comments.push(processedComment);
+  const calculateTotalComments = (commentsList: Comment[]): number => {
+    let count = 0;
+    const countComments = (commentList: Comment[]) => {
+      commentList.forEach(comment => {
+        if (!comment.is_deleted) {
+          count++;
+          if (comment.replies && comment.replies.length > 0) {
+            countComments(comment.replies);
           }
-        });
-
-        // Second pass: build reply structure
-        wolfpack_commentsData?.forEach(comment => {
-          if (comment.parent_id) {
-            const parent = wolfpack_commentsMap.get(comment.parent_id);
-            const child = wolfpack_commentsMap.get(comment.id);
-            if (parent && child) {
-              parent.replies = parent.replies || [];
-              parent.replies.push(child);
-            }
-          }
-        });
-
-        // Sort root wolfpack_comments by created_at (newest first)
-        rootwolfpack_comments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        
-        // Sort replies within each comment (oldest first)
-        rootwolfpack_comments.forEach(comment => {
-          if (comment.replies) {
-            comment.replies.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-          }
-        });
-
-        if (mountedRef.current) {
-          setwolfpack_comments(rootwolfpack_comments);
-          const totalCount = wolfpack_commentsData?.length || 0;
-          setCommentCount(totalCount);
-          onCommentCountChange(totalCount);
         }
-
-      } catch (error) {
-        console.error('Error loading wolfpack_comments:', error);
-        if (mountedRef.current) {
-          toast({
-            title: "Error",
-            description: "Failed to load wolfpack_comments",
-            variant: "destructive"
-          });
-        }
-      } finally {
-        if (mountedRef.current) {
-          setLoading(false);
-        }
-      }
+      });
     };
+    countComments(commentsList);
+    return count;
+  };
 
-    // Set up real-time subscription for wolfpack_comments
-    const channel = supabase
-      .channel(`wolfpack_comments_${postId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'wolfpack_comments',
-          filter: `video_id=eq.${postId}`
-        },
-        async (payload) => {
-          console.log('New comment:', payload);
-          
-          // Fetch the full comment data with user info
-          const { data: newCommentData, error } = await supabase
-            .from('wolfpack_comments')
-            .select(`
-              id,
-              user_id,
-              video_id,
-              parent_id,
-              content,
-              created_at,
-              updated_at,
-              is_deleted,
-              like_count,
-              users:user_id (
-                id,
-                first_name,
-                last_name,
-                avatar_url,
-                display_name
-              )
-            `)
-            .eq('id', payload.new.id)
-            .single();
+  const removeCommentFromTree = (commentsList: Comment[], commentId: string): Comment[] => {
+    return commentsList
+      .filter(comment => comment.id !== commentId)
+      .map(comment => ({
+        ...comment,
+        replies: comment.replies ? removeCommentFromTree(comment.replies, commentId) : []
+      }));
+  };
 
-          if (!error && newCommentData && mountedRef.current) {
-            const newComment: Comment = {
-              id: newCommentData.id,
-              user_id: newCommentData.user_id,
-              video_id: newCommentData.video_id,
-              parent_id: newCommentData.parent_id,
-              content: newCommentData.content,
-              created_at: newCommentData.created_at,
-              updated_at: newCommentData.updated_at,
-              is_deleted: newCommentData.is_deleted,
-              like_count: newCommentData.like_count || 0,
-              user: newCommentData.users ? {
-                id: newCommentData.users.id,
-                first_name: newCommentData.users.first_name,
-                last_name: newCommentData.users.last_name,
-                avatar_url: newCommentData.users.avatar_url,
-                display_name: newCommentData.users.display_name
-              } : undefined,
-              replies: []
-            };
+  const loadComments = useCallback(async () => {
+    try {
+      setLoading(true);
+      const commentsData = await commentsService.fetchComments(postId, user?.id);
+      
+      if (mountedRef.current) {
+        setComments(commentsData);
+        const totalCount = calculateTotalComments(commentsData);
+        setCommentCount(totalCount);
+        onCommentCountChange(totalCount);
+      }
+    } catch (error) {
+      console.error('Error loading comments:', error);
+      if (mountedRef.current) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load comments',
+          variant: 'destructive'
+        });
+      }
+    } finally {
+      if (mountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [postId, user?.id, onCommentCountChange]);
 
-            setwolfpack_comments(prev => {
-              if (!newCommentData.parent_id) {
-                // Root comment - add to beginning
-                return [newComment, ...prev];
-              } else {
-                // Reply - add to parent's replies
-                return prev.map(comment => {
-                  if (comment.id === newCommentData.parent_id) {
-                    return {
-                      ...comment,
-                      replies: [...(comment.replies || []), newComment]
-                    };
-                  }
-                  return comment;
-                });
-              }
-            });
+  const handleCommentDelete = useCallback((deletedData: any) => {
+    if (mountedRef.current) {
+      setComments(prev => removeCommentFromTree(prev, deletedData.id));
+      setCommentCount(prev => Math.max(0, prev - 1));
+      onCommentCountChange(Math.max(0, commentCount - 1));
+    }
+  }, [commentCount, onCommentCountChange]);
 
-            // Update comment count
-            setCommentCount(prev => {
-              const newCount = prev + 1;
-              onCommentCountChange(newCount);
-              return newCount;
-            });
-          }
+  const setupRealtimeSubscription = useCallback(() => {
+    channelRef.current = commentsService.subscribeToComments(postId, async (payload) => {
+      if (payload.table === 'wolfpack_comments') {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          await loadComments();
+        } else if (payload.eventType === 'DELETE') {
+          handleCommentDelete(payload.old);
         }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wolfpack_comments',
-          filter: `video_id=eq.${postId}`
-        },
-        (payload) => {
-          console.log('Comment updated:', payload);
-          
-          if (mountedRef.current) {
-            setwolfpack_comments(prev => updateCommentInTree(prev, payload.new.id, payload.new));
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'wolfpack_comments',
-          filter: `video_id=eq.${postId}`
-        },
-        (payload) => {
-          console.log('Comment deleted:', payload);
-          
-          if (mountedRef.current) {
-            setwolfpack_comments(prev => removeCommentFromTree(prev, payload.old.id));
-            setCommentCount(prev => {
-              const newCount = Math.max(0, prev - 1);
-              onCommentCountChange(newCount);
-              return newCount;
-            });
-          }
-        }
-      )
-      .subscribe();
+      } else if (payload.table === 'wolfpack_comment_reactions') {
+        await loadComments();
+      }
+    });
+  }, [postId, loadComments, handleCommentDelete]);
 
-    channelRef.current = channel;
-    loadwolfpack_comments();
+  useEffect(() => {
+    if (isOpen && postId) {
+      loadComments();
+      setupRealtimeSubscription();
+    }
 
     return () => {
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
       }
     };
-  }, [isOpen, postId, onCommentCountChange]);
+  }, [isOpen, postId, loadComments, setupRealtimeSubscription]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       mountedRef.current = false;
@@ -332,41 +350,11 @@ export default function Videowolfpack_commentsOptimized({
     };
   }, []);
 
-  // Helper function to update comment in nested structure
-  const updateCommentInTree = (wolfpack_comments: Comment[], commentId: string, updates: any): Comment[] => {
-    return wolfpack_comments.map(comment => {
-      if (comment.id === commentId) {
-        return { ...comment, ...updates };
-      }
-      if (comment.replies) {
-        return {
-          ...comment,
-          replies: updateCommentInTree(comment.replies, commentId, updates)
-        };
-      }
-      return comment;
-    });
-  };
-
-  // Helper function to remove comment from nested structure
-  const removeCommentFromTree = (wolfpack_comments: Comment[], commentId: string): Comment[] => {
-    return wolfpack_comments
-      .filter(comment => comment.id !== commentId)
-      .map(comment => ({
-        ...comment,
-        replies: comment.replies ? removeCommentFromTree(comment.replies, commentId) : []
-      }));
-  };
-
-  // Submit new comment
   const handleSubmitComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || submitting) return;
 
-    // Get current auth user in case the profile hasn't loaded yet
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    
-    if (!user && !authUser) {
+    if (!user?.id) {
       toast({
         title: 'Authentication required',
         description: 'Please sign in to comment',
@@ -377,55 +365,23 @@ export default function Videowolfpack_commentsOptimized({
 
     try {
       setSubmitting(true);
-      
-      // For new users, we need to get their database user ID
-      let userDbId = user?.id;
-      
-      if (!userDbId && authUser) {
-        const { data: userProfile, error: userError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_id', authUser.id)
-          .single();
-          
-        if (userError) {
-          console.error('Error finding user profile:', userError);
-          toast({
-            title: 'Error',
-            description: 'Unable to find user profile. Please try refreshing the page.',
-            variant: 'destructive'
-          });
-          return;
-        }
-        
-        userDbId = userProfile.id;
-      }
 
-      if (!userDbId) {
-        toast({
-          title: 'Error',
-          description: 'Unable to identify user for commenting. Please try signing out and back in.',
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      // Create comment
       const { error } = await supabase
         .from('wolfpack_comments')
         .insert({
-          user_id: userDbId,
+          user_id: user.id,
           video_id: postId,
           content: newComment.trim()
         });
 
       if (error) throw error;
 
-      // Clear input
       setNewComment('');
-      
-      // The real-time subscription will handle adding the comment to the UI
-      
+      toast({
+        title: 'Success',
+        description: 'Comment posted!',
+      });
+
     } catch (error: any) {
       console.error('Error submitting comment:', error);
       toast({
@@ -438,14 +394,11 @@ export default function Videowolfpack_commentsOptimized({
     }
   }, [newComment, submitting, user, postId]);
 
-  // Submit reply
   const handleSubmitReply = useCallback(async (e: React.FormEvent, parentCommentId: string) => {
     e.preventDefault();
     if (!replyContent.trim() || submittingReply) return;
 
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    
-    if (!user && !authUser) {
+    if (!user?.id) {
       toast({
         title: 'Authentication required',
         description: 'Please sign in to reply',
@@ -456,44 +409,14 @@ export default function Videowolfpack_commentsOptimized({
 
     try {
       setSubmittingReply(true);
-      
-      let userDbId = user?.id;
-      
-      if (!userDbId && authUser) {
-        const { data: userProfile, error: userError } = await supabase
-          .from('users')
-          .select('id')
-          .eq('auth_id', authUser.id)
-          .single();
-          
-        if (userError) {
-          toast({
-            title: 'Error',
-            description: 'Unable to find user profile. Please try refreshing the page.',
-            variant: 'destructive'
-          });
-          return;
-        }
-        
-        userDbId = userProfile.id;
-      }
-
-      if (!userDbId) {
-        toast({
-          title: 'Error',
-          description: 'Unable to identify user for replying.',
-          variant: 'destructive'
-        });
-        return;
-      }
 
       const { error } = await supabase
         .from('wolfpack_comments')
         .insert({
-          user_id: userDbId,
+          user_id: user.id,
           video_id: postId,
           content: replyContent.trim(),
-          parent_id: parentCommentId
+          parent_comment_id: parentCommentId
         });
 
       if (error) throw error;
@@ -501,6 +424,11 @@ export default function Videowolfpack_commentsOptimized({
       setReplyContent('');
       setReplyingTo(null);
       
+      toast({
+        title: 'Success',
+        description: 'Reply posted!',
+      });
+
     } catch (error: any) {
       console.error('Error submitting reply:', error);
       toast({
@@ -513,71 +441,115 @@ export default function Videowolfpack_commentsOptimized({
     }
   }, [replyContent, submittingReply, user, postId]);
 
-  // Handle comment like
   const handleLikeComment = useCallback(async (commentId: string) => {
     if (!user?.id) {
       toast({
         title: 'Authentication required',
-        description: 'Please sign in to like wolfpack_comments',
+        description: 'Please sign in to like comments',
         variant: 'destructive'
       });
       return;
     }
 
-    try {
-      // Toggle like (simplified - you can add more sophisticated like tracking)
-      const { error } = await supabase.rpc('toggle_comment_like', {
-        p_comment_id: commentId,
-        p_user_id: user.id
-      });
+    if (likingCommentId) return;
 
-      if (error) throw error;
+    try {
+      setLikingCommentId(commentId);
+
+      const { data: existingReaction } = await supabase
+        .from('wolfpack_comment_reactions')
+        .select('id')
+        .eq('comment_id', commentId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existingReaction) {
+        const { error } = await supabase
+          .from('wolfpack_comment_reactions')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('wolfpack_comment_reactions')
+          .insert({
+            comment_id: commentId,
+            user_id: user.id,
+            reaction_type: '❤️'
+          });
+          
+        if (error) throw error;
+      }
 
     } catch (error: any) {
       console.error('Error liking comment:', error);
       toast({
         title: 'Error',
-        description: 'Failed to like comment',
+        description: 'Failed to update like',
         variant: 'destructive'
       });
+    } finally {
+      setLikingCommentId(null);
     }
-  }, [user]);
+  }, [user, likingCommentId]);
+
+  const getDisplayName = useCallback((userInfo: Comment['user']) => {
+    if (!userInfo) return 'Anonymous';
+    
+    if (userInfo.display_name) return userInfo.display_name;
+    if (userInfo.username) return `@${userInfo.username}`;
+    
+    const fullName = `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim();
+    return fullName || 'Anonymous';
+  }, []);
+
+  const getAvatarUrl = useCallback((userInfo: Comment['user']) => {
+    if (!userInfo) return '/icons/wolf-icon.png';
+    return userInfo.avatar_url || '/icons/wolf-icon.png';
+  }, []);
 
   if (!isOpen) return null;
 
   return (
-    <div 
-      className={`fixed inset-0 bg-black/50 backdrop-blur-sm ${getZIndexClass('modal')} flex items-end justify-center`}
+    <div
+      className={`fixed inset-0 ${getZIndexClass('modal')} flex flex-col`}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="w-full max-w-lg bg-white rounded-t-3xl max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">
-            wolfpack_comments ({commentCount})
+      <div className="flex-1" onClick={onClose}></div>
+      
+      <div className="bg-black text-white flex flex-col rounded-t-2xl max-h-[70vh] animate-slide-up">
+        <div className="flex justify-center py-2">
+          <div className="w-12 h-1 bg-gray-600 rounded-full"></div>
+        </div>
+        
+        <div className="flex items-center justify-between px-4 pb-4">
+          <h3 className="text-lg font-semibold text-white">
+            {commentCount} {commentCount === 1 ? 'Comment' : 'Comments'}
           </h3>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-2 hover:bg-gray-800 rounded-full transition-colors"
+            aria-label="Close comments"
           >
-            <X className="h-5 w-5 text-gray-500" />
+            <XIcon className="h-5 w-5 text-white" />
           </button>
         </div>
 
-        {/* wolfpack_comments List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
             </div>
-          ) : wolfpack_comments.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-300" />
-              <p>No wolfpack_comments yet</p>
-              <p className="text-sm">Be the first to comment!</p>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-600" />
+              <p className="text-white">No comments yet</p>
+              <p className="text-sm text-gray-400">Be the first to comment!</p>
             </div>
           ) : (
-            wolfpack_comments.map((comment) => (
+            comments.map((comment) => (
               <CommentItem
                 key={comment.id}
                 comment={comment}
@@ -592,56 +564,69 @@ export default function Videowolfpack_commentsOptimized({
                 onSubmitReply={handleSubmitReply}
                 submittingReply={submittingReply}
                 replyInputRef={replyInputRef}
-                user={user}
+                currentUser={user}
+                isLiking={likingCommentId === comment.id}
+                getDisplayName={getDisplayName}
+                getAvatarUrl={getAvatarUrl}
+                handleLikeComment={handleLikeComment}
+                setReplyingTo={setReplyingTo}
+                likingCommentId={likingCommentId}
               />
             ))
           )}
         </div>
 
-        {/* Comment Input */}
-        <div className="border-t border-gray-200 bg-white p-4">
+        <div className="border-t border-gray-800 bg-gray-900/95 backdrop-blur-sm p-3 pb-safe">
           {!user ? (
             <div className="text-center py-4">
-              <p className="text-gray-500 mb-2">Sign in to comment</p>
-              <button 
+              <p className="text-gray-400 mb-2">Sign in to comment</p>
+              <button
                 onClick={() => window.location.href = '/login'}
-                className="text-blue-500 hover:text-blue-600 font-medium"
+                className="text-red-500 hover:text-red-400 font-medium"
               >
                 Sign In
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmitComment} className="flex gap-3 items-center">
-              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
-                <Image
-                  src={user.avatar_url || '/icons/wolf-icon-light-screen.png'}
-                  alt="Your avatar"
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover"
-                />
+            <div className="space-y-3">
+              <div className="flex gap-2 justify-center pb-2 overflow-x-auto">
+                {['❤️', '😂', '😍', '👏', '🔥', '💯', '🎉', '😢'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    onClick={() => setNewComment(prev => prev + emoji)}
+                    className="text-2xl p-2 hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0"
+                    aria-label={`Add ${emoji} emoji`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
               </div>
-              <input
-                ref={inputRef}
-                type="text"
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={submitting}
-              />
-              <button
-                type="submit"
-                disabled={!newComment.trim() || submitting}
-                className="p-2 text-blue-500 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed"
-              >
-                {submitting ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
-                ) : (
-                  <Send className="h-5 w-5" />
-                )}
-              </button>
-            </form>
+              
+              <form onSubmit={handleSubmitComment} className="flex gap-2 items-center">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add a comment..."
+                  className="flex-1 bg-gray-800 rounded-full px-4 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  disabled={submitting}
+                  maxLength={500}
+                />
+                <button
+                  type="submit"
+                  disabled={!newComment.trim() || submitting}
+                  className="p-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded-full transition-colors disabled:cursor-not-allowed"
+                  aria-label="Send comment"
+                >
+                  {submitting ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <Send className="h-5 w-5 text-white" />
+                  )}
+                </button>
+              </form>
+            </div>
           )}
         </div>
       </div>
@@ -649,7 +634,25 @@ export default function Videowolfpack_commentsOptimized({
   );
 }
 
-// Comment Item Component (simplified for space)
+interface CommentItemProps {
+  comment: Comment;
+  onLike: () => void;
+  onReply: () => void;
+  replyingTo: string | null;
+  replyContent: string;
+  setReplyContent: (content: string) => void;
+  onSubmitReply: (e: React.FormEvent, parentId: string) => void;
+  submittingReply: boolean;
+  replyInputRef: React.RefObject<HTMLInputElement>;
+  currentUser: any;
+  isLiking: boolean;
+  getDisplayName: (user: Comment['user']) => string;
+  getAvatarUrl: (user: Comment['user']) => string;
+  handleLikeComment: (commentId: string) => void;
+  setReplyingTo: (id: string | null) => void;
+  likingCommentId: string | null;
+}
+
 function CommentItem({ 
   comment, 
   onLike, 
@@ -660,8 +663,14 @@ function CommentItem({
   onSubmitReply, 
   submittingReply, 
   replyInputRef,
-  user 
-}: any) {
+  currentUser,
+  isLiking,
+  getDisplayName,
+  getAvatarUrl,
+  handleLikeComment,
+  setReplyingTo,
+  likingCommentId
+}: CommentItemProps) {
   const formatTimeAgo = (timestamp: string) => {
     const now = new Date();
     const commentTime = new Date(timestamp);
@@ -670,16 +679,18 @@ function CommentItem({
     if (diffInMinutes < 1) return 'now';
     if (diffInMinutes < 60) return `${diffInMinutes}m`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
-    return `${Math.floor(diffInMinutes / 1440)}d`;
+    if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d`;
+    if (diffInMinutes < 43200) return `${Math.floor(diffInMinutes / 10080)}w`;
+    return `${Math.floor(diffInMinutes / 43200)}mo`;
   };
 
   return (
     <div className="space-y-3">
       <div className="flex gap-3">
-        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-200">
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
           <Image
-            src={comment.user?.avatar_url || '/icons/wolf-icon-light-screen.png'}
-            alt={comment.user?.display_name || 'User'}
+            src={getAvatarUrl(comment.user)}
+            alt={getDisplayName(comment.user)}
             width={32}
             height={32}
             className="w-full h-full object-cover"
@@ -687,86 +698,116 @@ function CommentItem({
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-gray-900 text-sm">
-              {comment.user?.display_name || 
-               `${comment.user?.first_name || ''} ${comment.user?.last_name || ''}`.trim() || 
-               'Anonymous'}
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="font-semibold text-white text-sm">
+              {getDisplayName(comment.user)}
             </span>
-            <span className="text-gray-500 text-xs">
+            <span className="text-gray-400 text-xs">
               {formatTimeAgo(comment.created_at)}
             </span>
+            {comment.is_edited && (
+              <span className="text-gray-500 text-xs">(edited)</span>
+            )}
+            {comment.is_pinned && (
+              <span className="text-red-500 text-xs">📌 Pinned</span>
+            )}
           </div>
           
-          <p className="text-gray-800 text-sm leading-relaxed mb-2">
+          <p className="text-gray-200 text-sm whitespace-pre-wrap break-words">
             {comment.content}
           </p>
           
-          <div className="flex items-center gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-4 mt-2">
             <button
               onClick={onLike}
-              className="flex items-center gap-1 hover:text-red-500 transition-colors"
+              disabled={isLiking}
+              className={`flex items-center gap-1 transition-colors text-xs ${
+                comment.user_liked 
+                  ? 'text-red-500' 
+                  : 'text-gray-400 hover:text-red-500'
+              } ${isLiking ? 'opacity-50 cursor-not-allowed' : ''}`}
+              aria-label={comment.user_liked ? 'Unlike comment' : 'Like comment'}
             >
-              <Heart className="h-4 w-4" />
-              {comment.like_count || 0}
+              <Heart 
+                className="h-4 w-4" 
+                fill={comment.user_liked ? 'currentColor' : 'none'} 
+              />
+              {comment.like_count > 0 && <span>{comment.like_count}</span>}
             </button>
             
-            <button
-              onClick={onReply}
-              className="flex items-center gap-1 hover:text-blue-500 transition-colors"
-            >
-              <Reply className="h-4 w-4" />
-              Reply
-            </button>
-          </div>
-          
-          {/* Reply Input */}
-          {replyingTo === comment.id && (
-            <form 
-              onSubmit={(e) => onSubmitReply(e, comment.id)}
-              className="flex gap-2 mt-3"
-            >
-              <input
-                ref={replyInputRef}
-                type="text"
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder={`Reply to ${comment.user?.display_name || 'user'}...`}
-                className="flex-1 bg-gray-50 border border-gray-200 rounded-full px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                disabled={submittingReply}
-              />
+            {currentUser && (
               <button
-                type="submit"
-                disabled={!replyContent.trim() || submittingReply}
-                className="text-blue-500 hover:text-blue-600 disabled:text-gray-300 p-1"
+                onClick={onReply}
+                className="flex items-center gap-1 text-gray-400 hover:text-blue-400 transition-colors text-xs"
+                aria-label="Reply to comment"
               >
-                <Send className="h-4 w-4" />
+                <ReplyIcon className="h-4 w-4" />
+                Reply
               </button>
-            </form>
-          )}
-          
-          {/* Replies */}
-          {comment.replies && comment.replies.length > 0 && (
-            <div className="mt-3 space-y-3 pl-4 border-l-2 border-gray-100">
-              {comment.replies.map((reply) => (
-                <CommentItem
-                  key={reply.id}
-                  comment={reply}
-                  onLike={() => onLike(reply.id)}
-                  onReply={() => {}}
-                  replyingTo={null}
-                  replyContent=""
-                  setReplyContent={() => {}}
-                  onSubmitReply={() => {}}
-                  submittingReply={false}
-                  replyInputRef={replyInputRef}
-                  user={user}
-                />
-              ))}
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+      
+      {replyingTo === comment.id && currentUser && (
+        <form onSubmit={(e) => onSubmitReply(e, comment.id)} className="ml-11 flex gap-2">
+          <input
+            ref={replyInputRef}
+            type="text"
+            value={replyContent}
+            onChange={(e) => setReplyContent(e.target.value)}
+            placeholder="Write a reply..."
+            className="flex-1 text-sm px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+            disabled={submittingReply}
+            maxLength={500}
+          />
+          <button
+            type="submit"
+            disabled={!replyContent.trim() || submittingReply}
+            className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-full hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+          >
+            {submittingReply ? '...' : 'Reply'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setReplyingTo(null)}
+            className="px-3 py-1.5 text-xs font-medium bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors"
+          >
+            Cancel
+          </button>
+        </form>
+      )}
+      
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="ml-11 space-y-3">
+          {comment.replies.map((reply) => (
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              onLike={() => handleLikeComment(reply.id)}
+              onReply={() => {
+                setReplyingTo(reply.id);
+                setTimeout(() => replyInputRef.current?.focus(), 100);
+              }}
+              replyingTo={replyingTo}
+              replyContent={replyContent}
+              setReplyContent={setReplyContent}
+              onSubmitReply={onSubmitReply}
+              submittingReply={submittingReply}
+              replyInputRef={replyInputRef}
+              currentUser={currentUser}
+              isLiking={likingCommentId === reply.id}
+              getDisplayName={getDisplayName}
+              getAvatarUrl={getAvatarUrl}
+              handleLikeComment={handleLikeComment}
+              setReplyingTo={setReplyingTo}
+              likingCommentId={likingCommentId}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+
+export default VideoComments;

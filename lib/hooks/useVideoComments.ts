@@ -6,7 +6,7 @@ export interface VideoComment {
   id: string;
   user_id: string;
   video_id: string;
-  parent_id: string | null;
+  parent_comment_id: string | null;
   content: string;
   created_at: string;
   updated_at: string;

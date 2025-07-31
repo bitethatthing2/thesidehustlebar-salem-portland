@@ -359,7 +359,7 @@ CREATE INDEX idx_wolfpack_post_likes_user_id ON wolfpack_post_likes(user_id);
 
 -- For wolfpack_comments queries  
 CREATE INDEX idx_wolfpack_comments_video_id ON wolfpack_comments(video_id);
-CREATE INDEX idx_wolfpack_comments_parent_id ON wolfpack_comments(parent_comment_id);
+CREATE INDEX idx_wolfpack_comments_parent_comment_id ON wolfpack_comments(parent_comment_id);
 ```
 
 ### Frontend Optimization
