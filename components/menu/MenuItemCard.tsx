@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Flame, Leaf, Star, Play } from 'lucide-react';
+import { Flame, Leaf, Star, Play, UtensilsCrossed } from 'lucide-react';
 import WatchItMadeModal from './WatchItMadeModal';
 import Image from 'next/image';
 import { VideoPlayer } from '@/components/ui/VideoPlayer';
+import { cn } from '@/lib/utils';
 // Removed getFreshImageUrl import to improve performance
 
 import type { MenuItemWithModifiers, CartOrderData } from '@/types/features/menu';
@@ -298,15 +299,22 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
   const isVegetarian = item.name.toLowerCase().includes('vegetarian') || 
                        item.name.toLowerCase().includes('veggie');
   const isPopular = item.name.toLowerCase().includes('popular');
+  const isBirria = item.category?.name?.toLowerCase().includes('birria') || 
+                   item.name.toLowerCase().includes('birria');
   
   return (
     <>
-      <Card className="menu-item-card bg-zinc-800 border-zinc-600 hover:border-zinc-500 transition-colors">
-        <CardContent className="p-3">
+      <Card className={cn(
+        "menu-item-card bg-gradient-to-br from-zinc-900 to-zinc-800 border transition-all duration-300 shadow-xl",
+        isBirria 
+          ? "border-rose-500/50 hover:border-rose-500 hover:shadow-2xl hover:shadow-rose-500/30 bg-gradient-to-br from-zinc-900 via-rose-950/20 to-zinc-800" 
+          : "border-zinc-700 hover:border-zinc-500 hover:shadow-2xl hover:shadow-zinc-500/20"
+      )}>
+        <CardContent className="p-4">
           <div className="md:flex gap-4">
             {/* Image/Video with mobile-first sizing constraints */}
             {foodImageUrl && !imageError ? (
-              <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-28 lg:h-28 rounded-md overflow-hidden bg-gray-800 relative flex-shrink-0 border border-gray-600 p-1">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 rounded-lg overflow-hidden bg-gradient-to-br from-gray-900 to-gray-800 relative flex-shrink-0 border-2 border-zinc-700 shadow-lg">
                 {foodImageUrl.endsWith('.mp4') || foodImageUrl.endsWith('.webm') ? (
                   <VideoPlayer
                     src={foodImageUrl}
@@ -321,9 +329,9 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
                     src={foodImageUrl}
                     alt={item.name}
                     fill
-                    sizes="(max-width: 640px) 64px, (max-width: 768px) 80px, (max-width: 1024px) 96px, 112px"
-                    className="object-contain w-full h-full"
-                    style={{ objectFit: 'contain', width: '100%', height: '100%' }}
+                    sizes="(max-width: 640px) 80px, (max-width: 768px) 96px, (max-width: 1024px) 112px, 128px"
+                    className="object-cover w-full h-full"
+                    style={{ objectFit: 'cover', width: '100%', height: '100%' }}
                     loading="lazy"
                     placeholder="blur"
                     blurDataURL={`data:image/svg+xml;base64,${toBase64(shimmer(64, 64))}`}
@@ -332,43 +340,50 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
                 )}
               </div>
             ) : (
-              <div className={`w-1 h-16 sm:h-20 md:h-18 lg:h-20 ${themeColor} rounded-full flex-shrink-0`} />
+              <div className={`w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 lg:w-32 lg:h-32 ${themeColor} rounded-lg flex-shrink-0 flex items-center justify-center shadow-lg`}>
+                <UtensilsCrossed className="w-10 h-10 text-white/50" />
+              </div>
             )}
             
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex justify-between items-start gap-2 mb-2">
-                <h3 className="menu-item-name font-semibold text-base sm:text-lg leading-tight flex-1 text-white">{item.name}</h3>
-                <span className="menu-item-price font-bold text-base sm:text-lg text-green-500 flex-shrink-0">${Number(item.price).toFixed(2)}</span>
+                <h3 className="menu-item-name font-bold text-lg sm:text-xl leading-tight flex-1 text-white">{item.name}</h3>
+                <span className="menu-item-price font-bold text-lg sm:text-xl text-emerald-400 flex-shrink-0">${Number(item.price).toFixed(2)}</span>
               </div>
               {item.description && (
-                <p className="menu-item-description text-xs sm:text-sm text-gray-300 line-clamp-3 sm:line-clamp-none mb-2">
+                <p className="menu-item-description text-sm sm:text-base text-gray-400 line-clamp-2 sm:line-clamp-3 mb-3">
                   {item.description}
                 </p>
               )}
               
               {/* Badges */}
               <div className="flex flex-wrap gap-1.5 mb-3">
+                {isBirria && (
+                  <Badge variant="secondary" className="bg-gradient-to-r from-rose-600/40 to-red-600/40 text-rose-300 border border-rose-500/60 backdrop-blur-sm shadow-lg">
+                    <span className="text-xs font-bold">🔥 BEST IN OREGON</span>
+                  </Badge>
+                )}
                 {isSpicy && (
-                  <Badge variant="secondary" className="bg-red-500/20 text-red-300 border-red-500/30">
-                    <Flame className="w-3.5 h-3.5 mr-1" />
+                  <Badge variant="secondary" className="bg-gradient-to-r from-red-600/30 to-orange-600/30 text-orange-300 border border-orange-500/50 backdrop-blur-sm shadow-md">
+                    <Flame className="w-3.5 h-3.5 mr-1 fill-current" />
                     Spicy
                   </Badge>
                 )}
                 {isVegetarian && (
-                  <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30">
+                  <Badge variant="secondary" className="bg-gradient-to-r from-green-600/30 to-emerald-600/30 text-emerald-300 border border-emerald-500/50 backdrop-blur-sm shadow-md">
                     <Leaf className="w-3.5 h-3.5 mr-1" />
                     Vegetarian
                   </Badge>
                 )}
                 {isPopular && (
-                  <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                    <Star className="w-3.5 h-3.5 mr-1" />
+                  <Badge variant="secondary" className="bg-gradient-to-r from-yellow-500/30 to-amber-500/30 text-yellow-300 border border-yellow-500/50 backdrop-blur-sm shadow-md animate-pulse">
+                    <Star className="w-3.5 h-3.5 mr-1 fill-current" />
                     Popular
                   </Badge>
                 )}
                 {!item.is_available && (
-                  <Badge variant="destructive" className="bg-red-600/20 text-red-300 border-red-600/30">
+                  <Badge variant="destructive" className="bg-red-900/50 text-red-400 border border-red-600/50 backdrop-blur-sm">
                     Sold Out
                   </Badge>
                 )}

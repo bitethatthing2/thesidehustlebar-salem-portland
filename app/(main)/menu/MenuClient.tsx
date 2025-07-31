@@ -11,7 +11,8 @@ import {
   RefreshCw,
   ArrowLeft,
   ShoppingCart,
-  Search
+  Search,
+  Star
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ import MenuSearch from '@/components/menu/MenuSearch';
 import Cart from '@/components/cart/Cart';
 import { useCart } from '@/components/cart/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 import type {
   MenuCategoryWithCount,
   MenuItemWithModifiers,
@@ -85,19 +87,58 @@ export default function MenuClient({
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Initialize active category
+  // Initialize active category to show all items by default
   useEffect(() => {
-    if (!activeCategory && categories.length > 0) {
-      const firstFoodCategory = categories.find(cat => cat.type === 'food');
-      const selectedCategory = firstFoodCategory?.id || categories[0].id;
-      console.log('🎯 Setting initial active category:', selectedCategory);
-      setActiveCategory(selectedCategory);
+    if (activeCategory === '') {
+      // When "All" is selected, fetch all food items
+      fetchAllMenuItems();
     }
-  }, [categories, activeCategory]);
+  }, [activeCategory, fetchAllMenuItems]);
+
+  // Fetch all menu items
+  const fetchAllMenuItems = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const allItems: MenuItemWithModifiers[] = [];
+      
+      // Fetch items from all food categories
+      for (const category of initialFoodCategories) {
+        const response = await fetch(`/api/menu-items/${category.id}`);
+        if (response.ok) {
+          const items = await response.json();
+          allItems.push(...items);
+        }
+      }
+      
+      setItems(allItems);
+      console.log('✅ All items loaded, Count:', allItems.length);
+      
+    } catch (err) {
+      console.error('Error fetching all menu items:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(`Failed to load menu items: ${errorMessage}`);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [initialFoodCategories]);
 
   // Fetch menu items for active category via API
   const fetchMenuItems = useCallback(async (categoryId: string) => {
     if (!categoryId) return;
+
+    // Handle special categories
+    if (categoryId === 'popular') {
+      // For now, fetch all items and filter popular ones
+      await fetchAllMenuItems();
+      return;
+    }
 
     try {
       setLoading(true);
@@ -130,7 +171,7 @@ export default function MenuClient({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchAllMenuItems]);
 
   // Handle filtered items from search
   const handleFilteredItemsChange = useCallback((newFilteredItems: MenuItemWithModifiers[]) => {
@@ -144,10 +185,12 @@ export default function MenuClient({
 
   // Update items when active category changes
   useEffect(() => {
-    if (activeCategory) {
+    if (activeCategory === '') {
+      fetchAllMenuItems();
+    } else if (activeCategory) {
       fetchMenuItems(activeCategory);
     }
-  }, [activeCategory, fetchMenuItems]);
+  }, [activeCategory, fetchMenuItems, fetchAllMenuItems]);
 
   // Update filtered items when items change and not searching
   useEffect(() => {
@@ -156,19 +199,6 @@ export default function MenuClient({
     }
   }, [items, isSearching]);
 
-  // Update active category when tab changes
-  useEffect(() => {
-    if (categories.length === 0) return;
-
-    const currentCategory = categories.find(cat => cat.id === activeCategory);
-    
-    if (!currentCategory || currentCategory.type !== activeTab) {
-      const firstCategoryInTab = categories.find(cat => cat.type === activeTab);
-      if (firstCategoryInTab) {
-        setActiveCategory(firstCategoryInTab.id);
-      }
-    }
-  }, [activeTab, categories, activeCategory]);
 
   // Handle add to cart
   const handleAddToCart = useCallback((orderData: CartOrderData) => {
@@ -361,63 +391,130 @@ export default function MenuClient({
         )}
       </header>
 
-      {/* Main Tabs - Full width on mobile */}
+      {/* Unified Category Navigation - Horizontal scrolling chip bar */}
       <div className="sticky top-[73px] z-30 bg-black border-b border-zinc-700">
-        <Tabs 
-          value={activeTab} 
-          onValueChange={(val) => {
-            const newTab = val as 'food' | 'drink';
-            setActiveTab(newTab);
-            // Switch to first category of the new tab
-            const newCategories = newTab === 'food' ? foodCategories : drinkCategories;
-            if (newCategories.length > 0) {
-              setActiveCategory(newCategories[0].id);
-            }
-          }} 
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-2 h-12 p-1 rounded-none">
-            <TabsTrigger 
-              value="food" 
-              className="menu-main-tab-food flex items-center gap-2 text-base"
-            >
-              <UtensilsCrossed className="w-5 h-5" />
-              <span>Food ({foodCategories.length})</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="drink" 
-              className="menu-main-tab-drinks flex items-center gap-2 text-base"
-            >
-              <Wine className="w-5 h-5" />
-              <span>Drinks ({drinkCategories.length})</span>
-            </TabsTrigger>
-          </TabsList>
+        <div className="bg-zinc-900/95">
+          {/* All categories in one scrollable row */}
+          <div className="relative">
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-2 px-4 py-3">
+                {/* All Items chip */}
+                <button
+                  onClick={() => {
+                    setActiveCategory('');
+                    setActiveTab('food');
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                    "min-h-[40px] min-w-fit",
+                    !activeCategory && activeCategory === ''
+                      ? "bg-white text-black shadow-md"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <span>All</span>
+                </button>
 
-          {/* Category Navigation - Horizontal scroll on mobile */}
-          <div className="bg-zinc-800/50">
-            <TabsContent value="food" className="m-0">
-              <div className="overflow-x-auto">
-                <MenuCategoryNav
-                  categories={foodCategories}
-                  activeCategory={activeCategory}
-                  onCategoryChange={setActiveCategory}
-                  loading={false}
-                />
-              </div>
-            </TabsContent>
+                {/* Popular chip */}
+                <button
+                  onClick={() => {
+                    setActiveCategory('popular');
+                    setActiveTab('food');
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                    "min-h-[40px] min-w-fit",
+                    activeCategory === 'popular'
+                      ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-black shadow-md"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <Star className="w-4 h-4" />
+                  <span>Popular</span>
+                </button>
 
-            <TabsContent value="drink" className="m-0">
-              <div className="overflow-x-auto">
-                <MenuCategoryNav
-                  categories={drinkCategories}
-                  activeCategory={activeCategory}
-                  onCategoryChange={setActiveCategory}
-                  loading={false}
-                />
+                {/* Divider */}
+                <div className="w-px h-6 bg-zinc-700 mx-1" />
+
+                {/* Food categories */}
+                {foodCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => {
+                      setActiveCategory(category.id);
+                      setActiveTab('food');
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                      "min-h-[40px] min-w-fit",
+                      activeCategory === category.id
+                        ? "bg-rose-500 text-white shadow-md"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                    )}
+                  >
+                    <span>{category.name}</span>
+                    {category.item_count !== undefined && category.item_count > 0 && (
+                      <span className="text-xs opacity-70">({category.item_count})</span>
+                    )}
+                  </button>
+                ))}
+
+                {/* Divider */}
+                <div className="w-px h-6 bg-zinc-700 mx-1" />
+
+                {/* Drinks chip */}
+                <button
+                  onClick={() => {
+                    if (drinkCategories.length > 0) {
+                      setActiveCategory(drinkCategories[0].id);
+                      setActiveTab('drink');
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                    "min-h-[40px] min-w-fit",
+                    activeTab === 'drink'
+                      ? "bg-cyan-500 text-white shadow-md"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                  )}
+                >
+                  <Wine className="w-4 h-4" />
+                  <span>Drinks</span>
+                </button>
+
+                {/* Drink categories */}
+                {activeTab === 'drink' && drinkCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => {
+                      setActiveCategory(category.id);
+                      setActiveTab('drink');
+                    }}
+                    className={cn(
+                      "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                      "min-h-[40px] min-w-fit",
+                      activeCategory === category.id
+                        ? "bg-cyan-500 text-white shadow-md"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                    )}
+                  >
+                    <span>{category.name}</span>
+                    {category.item_count !== undefined && category.item_count > 0 && (
+                      <span className="text-xs opacity-70">({category.item_count})</span>
+                    )}
+                  </button>
+                ))}
+
+                {/* End padding */}
+                <div className="w-4 flex-shrink-0" />
               </div>
-            </TabsContent>
+            </div>
+
+            {/* Edge fade indicators */}
+            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-zinc-900 to-transparent pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-900 to-transparent pointer-events-none" />
           </div>
-        </Tabs>
+        </div>
       </div>
 
       {/* Menu Items - Mobile optimized */}

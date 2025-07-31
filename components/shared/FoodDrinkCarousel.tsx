@@ -1226,9 +1226,9 @@ export function FoodDrinkCarousel() {
                     </span>
                   </div>
                   
-                  {/* Category badge */}
-                  <div className="absolute top-3 left-3">
-                    <span className="bg-black/70 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wider">
+                  {/* Category badge - moved to bottom right */}
+                  <div className="absolute bottom-3 right-3">
+                    <span className="bg-black/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider shadow-lg">
                       {item.category}
                     </span>
                   </div>
