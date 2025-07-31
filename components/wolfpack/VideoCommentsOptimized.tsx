@@ -75,7 +75,8 @@ class WolfpackCommentsService {
   
   async fetchComments(videoId: string, currentUserId?: string) {
     try {
-      const { data: comments, error } = await this.supabase
+      // First, try with public.users relationship (most recent schema)
+      let { data: comments, error } = await this.supabase
         .from('wolfpack_comments')
         .select(`
           id,
@@ -90,7 +91,7 @@ class WolfpackCommentsService {
           likes_count,
           is_pinned,
           is_edited,
-          users!inner (
+          users!left (
             id,
             first_name,
             last_name,
@@ -103,6 +104,58 @@ class WolfpackCommentsService {
         .eq('video_id', videoId)
         .eq('is_deleted', false)
         .order('created_at', { ascending: false }) as { data: SupabaseComment[] | null, error: any };
+
+      // If the query fails or returns no user data, try fetching comments and users separately
+      if (error || !comments || comments.length === 0 || (comments.length > 0 && !comments[0].users)) {
+        console.log('Primary query failed or returned no user data, trying fallback approach:', error?.message);
+        
+        // Fallback: Get comments first, then fetch user data separately
+        const { data: commentsOnly, error: commentsError } = await this.supabase
+          .from('wolfpack_comments')
+          .select(`
+            id,
+            user_id,
+            video_id,
+            parent_comment_id,
+            content,
+            created_at,
+            updated_at,
+            is_deleted,
+            like_count,
+            likes_count,
+            is_pinned,
+            is_edited
+          `)
+          .eq('video_id', videoId)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false });
+
+        if (commentsError) throw commentsError;
+        
+        if (commentsOnly && commentsOnly.length > 0) {
+          const userIds = [...new Set(commentsOnly.map(c => c.user_id))];
+          
+          // Try to fetch from public.users first
+          const { data: userData } = await this.supabase
+            .from('users')
+            .select('id, first_name, last_name, avatar_url, display_name, username, profile_image_url')
+            .in('id', userIds);
+
+          // Create a user lookup map
+          const userMap = new Map();
+          if (userData) {
+            userData.forEach(user => userMap.set(user.id, user));
+          }
+
+          // Combine comments with user data
+          comments = commentsOnly.map(comment => ({
+            ...comment,
+            users: userMap.get(comment.user_id) || null
+          }));
+        } else {
+          comments = [];
+        }
+      }
 
       if (error) throw error;
 
@@ -128,8 +181,19 @@ class WolfpackCommentsService {
       });
 
       const transformedComments = (comments || []).map(comment => {
-        // Handle users as either array or single object
+        // Handle users as either array or single object, with fallback for missing user data
         const userObject = Array.isArray(comment.users) ? comment.users[0] : comment.users;
+        
+        // Create fallback user object if user data is missing
+        const fallbackUser = userObject || {
+          id: comment.user_id,
+          first_name: 'Unknown',
+          last_name: 'User',
+          avatar_url: null,
+          display_name: 'Unknown User',
+          username: 'unknown',
+          profile_image_url: null
+        };
         
         return {
           id: comment.id,
@@ -142,15 +206,15 @@ class WolfpackCommentsService {
           is_deleted: comment.is_deleted,
           is_pinned: comment.is_pinned,
           is_edited: comment.is_edited,
-          user: userObject ? {
-            id: userObject.id,
-            first_name: userObject.first_name,
-            last_name: userObject.last_name,
-            avatar_url: userObject.profile_image_url || userObject.avatar_url,
-            display_name: userObject.display_name,
-            username: userObject.username,
-            profile_image_url: userObject.profile_image_url
-          } : undefined,
+          user: {
+            id: fallbackUser.id,
+            first_name: fallbackUser.first_name,
+            last_name: fallbackUser.last_name,
+            avatar_url: fallbackUser.profile_image_url || fallbackUser.avatar_url,
+            display_name: fallbackUser.display_name || fallbackUser.username || 'Unknown User',
+            username: fallbackUser.username || 'unknown',
+            profile_image_url: fallbackUser.profile_image_url
+          },
           like_count: comment.likes_count || comment.like_count || 0,
           user_liked: userReactionsSet.has(comment.id),
           reaction_count: reactionMap.get(comment.id) || 0,
@@ -282,20 +346,25 @@ function VideoComments({
   const loadComments = useCallback(async () => {
     try {
       setLoading(true);
+      console.log('🔄 Loading comments for video:', postId);
+      
       const commentsData = await commentsService.fetchComments(postId, user?.id);
+      console.log('✅ Comments loaded:', commentsData?.length || 0, 'comments');
       
       if (mountedRef.current) {
         setComments(commentsData);
         const totalCount = calculateTotalComments(commentsData);
         setCommentCount(totalCount);
         onCommentCountChange(totalCount);
+        
+        console.log('📊 Comment count updated:', totalCount);
       }
     } catch (error) {
-      console.error('Error loading comments:', error);
+      console.error('❌ Error loading comments:', error);
       if (mountedRef.current) {
         toast({
           title: 'Error',
-          description: 'Failed to load comments',
+          description: `Failed to load comments: ${error instanceof Error ? error.message : 'Unknown error'}`,
           variant: 'destructive'
         });
       }
@@ -365,6 +434,11 @@ function VideoComments({
 
     try {
       setSubmitting(true);
+      console.log('💬 Submitting comment:', {
+        user_id: user.id,
+        video_id: postId,
+        content: newComment.trim()
+      });
 
       const { error } = await supabase
         .from('wolfpack_comments')
@@ -374,16 +448,23 @@ function VideoComments({
           content: newComment.trim()
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Comment submission error:', error);
+        throw error;
+      }
 
+      console.log('✅ Comment submitted successfully');
       setNewComment('');
       toast({
         title: 'Success',
         description: 'Comment posted!',
       });
 
+      // Reload comments to show the new comment
+      setTimeout(() => loadComments(), 500);
+
     } catch (error: any) {
-      console.error('Error submitting comment:', error);
+      console.error('❌ Error submitting comment:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to post comment',
@@ -392,7 +473,7 @@ function VideoComments({
     } finally {
       setSubmitting(false);
     }
-  }, [newComment, submitting, user, postId]);
+  }, [newComment, submitting, user, postId, loadComments]);
 
   const handleSubmitReply = useCallback(async (e: React.FormEvent, parentCommentId: string) => {
     e.preventDefault();
