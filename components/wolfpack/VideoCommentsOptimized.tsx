@@ -358,6 +358,7 @@ function VideoComments({
         onCommentCountChange(totalCount);
         
         console.log('📊 Comment count updated:', totalCount);
+        console.log('🎯 Setting loading to false, comments state:', commentsData);
       }
     } catch (error) {
       console.error('❌ Error loading comments:', error);
@@ -369,8 +370,10 @@ function VideoComments({
         });
       }
     } finally {
+      console.log('🏁 loadComments finally block, mountedRef.current:', mountedRef.current);
       if (mountedRef.current) {
         setLoading(false);
+        console.log('✅ Loading set to false');
       }
     }
   }, [postId, user?.id, onCommentCountChange]);
@@ -596,7 +599,7 @@ function VideoComments({
   return (
     <div
       className={`fixed inset-0 ${getZIndexClass('modal')} flex flex-col`}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={(e) => e.target === e.currentTarget && onClose())}
     >
       <div className="flex-1" onClick={onClose}></div>
       
@@ -619,17 +622,19 @@ function VideoComments({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-600" />
-              <p className="text-white">No comments yet</p>
-              <p className="text-sm text-gray-400">Be the first to comment!</p>
-            </div>
-          ) : (
+          {(() => {
+            console.log('🎯 RENDER DEBUG:', { loading, commentsLength: comments.length, commentCount });
+            return loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-600" />
+                <p className="text-white">No comments yet</p>
+                <p className="text-sm text-gray-400">Be the first to comment!</p>
+              </div>
+            ) : (
             comments.map((comment) => (
               <CommentItem
                 key={comment.id}
@@ -653,8 +658,8 @@ function VideoComments({
                 setReplyingTo={setReplyingTo}
                 likingCommentId={likingCommentId}
               />
-            ))
-          )}
+            ));
+          })()}
         </div>
 
         <div className="border-t border-gray-800 bg-gray-900/95 backdrop-blur-sm p-3 pb-safe">
