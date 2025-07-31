@@ -2,12 +2,10 @@
 
 // components/menu/Menu-optimized.tsx
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   UtensilsCrossed, 
-  Wine, 
   AlertCircle, 
   RefreshCw,
   ArrowLeft,
@@ -21,7 +19,7 @@ import { errorService, ErrorSeverity, ErrorCategory } from '@/lib/services/error
 import { dataService } from '@/lib/services/data-service';
 import { authService, Permission } from '@/lib/services/auth-service';
 import { toast } from 'sonner';
-import MenuCategoryNav from './MenuCategoryNav';
+import CategoryChipBar from './CategoryChipBar';
 import MenuItemCard, { CompactMenuItemCard } from './MenuItemCard';
 import Cart from '@/components/cart/Cart';
 import { useCart } from '@/components/cart/CartContext';
@@ -73,8 +71,7 @@ function useDebouncedCallback<T extends (...args: any[]) => any>(
 }
 
 export default function OptimizedMenu() {
-  const [activeTab, setActiveTab] = useState<'food' | 'drink'>('food');
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('all');
   const [hasInitialized, setHasInitialized] = useState(false);
   const [useCompactView, setUseCompactView] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -210,15 +207,9 @@ export default function OptimizedMenu() {
         }
       }).filter(Boolean) as MenuItemWithModifiers[];
 
-      // Set first category as active if none selected
-      if (!activeCategory && transformedCategories.length > 0) {
-        const firstCategory = transformedCategories
-          .filter(cat => cat.type === activeTab)
-          .sort((a, b) => a.display_order - b.display_order)[0];
-        
-        if (firstCategory) {
-          setActiveCategory(firstCategory.id);
-        }
+      // Default to 'all' category if not set
+      if (!activeCategory) {
+        setActiveCategory('all');
       }
 
       // Update state
@@ -243,7 +234,7 @@ export default function OptimizedMenu() {
         {
           component: 'Menu',
           action: 'fetchMenuData',
-          metadata: { activeTab, showLoading }
+          metadata: { activeCategory, showLoading }
         }
       );
 
@@ -261,7 +252,7 @@ export default function OptimizedMenu() {
 
       console.error('Menu loading failed:', appError);
     }
-  }, [activeTab, activeCategory, hasInitialized]);
+  }, [activeCategory, hasInitialized]);
 
   // Enhanced real-time subscription with reconnection logic
   useEffect(() => {
@@ -463,17 +454,35 @@ export default function OptimizedMenu() {
     await fetchMenuData(true);
   }, [fetchMenuData]);
 
-  // Filter items by active category and tab
-  const filteredItems = menuState.items.filter(item => {
-    const categoryMatch = !activeCategory || item.category_id === activeCategory;
-    const tabMatch = item.category?.type === activeTab;
-    return categoryMatch && tabMatch && item.is_available;
-  });
+  // Prepare merged categories list
+  const mergedCategories = [
+    { id: 'all', name: 'All', type: 'all' as const, item_count: menuState.items.filter(i => i.is_available).length },
+    { id: 'popular', name: 'Popular', type: 'popular' as const, item_count: menuState.items.filter(i => i.is_available).length }, // You'll need to implement popular logic
+    ...menuState.categories
+      .filter(cat => cat.is_active && cat.type === 'food')
+      .sort((a, b) => a.display_order - b.display_order)
+      .map(cat => ({ ...cat, type: cat.type as 'food' | 'drink' | 'all' | 'popular' | 'special' })),
+    ...menuState.categories
+      .filter(cat => cat.is_active && cat.type === 'drink')
+      .sort((a, b) => a.display_order - b.display_order)
+      .map(cat => ({ ...cat, type: cat.type as 'food' | 'drink' | 'all' | 'popular' | 'special' }))
+  ];
 
-  // Filter categories by active tab
-  const filteredCategories = menuState.categories.filter(cat => 
-    cat.type === activeTab && cat.is_active
-  );
+  // Filter items based on active category
+  const filteredItems = menuState.items.filter(item => {
+    if (!item.is_available) return false;
+    
+    switch (activeCategory) {
+      case 'all':
+        return true;
+      case 'popular':
+        // TODO: Implement popular items logic
+        // For now, show items with display_order < 10 as popular
+        return item.display_order !== undefined && item.display_order < 10;
+      default:
+        return item.category_id === activeCategory;
+    }
+  });
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-6xl">
@@ -565,89 +574,46 @@ export default function OptimizedMenu() {
         </Alert>
       )}
 
-      {/* Menu Content */}
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'food' | 'drink')}>
-        <TabsList className="grid w-full grid-cols-2 mb-6">
-          <TabsTrigger value="food" className="flex items-center gap-2">
-            <UtensilsCrossed className="h-4 w-4" />
-            Food ({filteredCategories.filter(c => c.type === 'food').length})
-          </TabsTrigger>
-          <TabsTrigger value="drink" className="flex items-center gap-2">
-            <Wine className="h-4 w-4" />
-            Drinks ({filteredCategories.filter(c => c.type === 'drink').length})
-          </TabsTrigger>
-        </TabsList>
+      {/* Category Navigation */}
+      <CategoryChipBar
+        categories={mergedCategories}
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
+        loading={menuState.loading}
+      />
 
-        <TabsContent value="food">
-          <MenuCategoryNav
-            categories={filteredCategories}
-            activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
-            loading={menuState.loading}
-          />
-          
-          {menuState.loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-48 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredItems.map(item => (
-                useCompactView ? (
-                  <CompactMenuItemCard
-                    key={item.id}
-                    item={item}
-                    onAddToCart={handleAddToCart}
-                  />
-                ) : (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    onAddToCart={handleAddToCart}
-                  />
-                )
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="drink">
-          <MenuCategoryNav
-            categories={filteredCategories}
-            activeCategory={activeCategory}
-            onCategoryChange={setActiveCategory}
-            loading={menuState.loading}
-          />
-          
-          {menuState.loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Skeleton key={i} className="h-48 w-full" />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredItems.map(item => (
-                useCompactView ? (
-                  <CompactMenuItemCard
-                    key={item.id}
-                    item={item}
-                    onAddToCart={handleAddToCart}
-                  />
-                ) : (
-                  <MenuItemCard
-                    key={item.id}
-                    item={item}
-                    onAddToCart={handleAddToCart}
-                  />
-                )
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      {/* Menu Items Grid */}
+      <div className="mt-6">
+        {menuState.loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-48 w-full" />
+            ))}
+          </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No items available in this category</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredItems.map(item => (
+              useCompactView ? (
+                <CompactMenuItemCard
+                  key={item.id}
+                  item={item}
+                  onAddToCart={handleAddToCart}
+                />
+              ) : (
+                <MenuItemCard
+                  key={item.id}
+                  item={item}
+                  onAddToCart={handleAddToCart}
+                />
+              )
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Enhanced Cart */}
       {isCartOpen && (

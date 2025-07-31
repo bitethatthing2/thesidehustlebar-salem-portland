@@ -333,16 +333,6 @@ export default function MenuClient({
           <h1 className="text-xl font-bold text-white">Menu</h1>
           
           <div className="flex items-center gap-2">
-            {/* Search Toggle Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowSearch(!showSearch)}
-              className={`h-10 w-10 ${showSearch ? 'text-blue-400' : ''}`}
-            >
-              <Search className="w-5 h-5" />
-            </Button>
-            
             {/* Cart Button or Login CTA */}
             {user ? (
             <Button
@@ -378,142 +368,127 @@ export default function MenuClient({
           </div>
         </div>
 
-        {/* Search Component */}
+      </header>
+
+      {/* Search Bar - Above categories */}
+      <div className="bg-zinc-900 px-4 py-3 border-b border-zinc-700">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+          <input
+            type="text"
+            placeholder="Search menu items..."
+            className="w-full pl-10 pr-4 py-2 bg-zinc-800 text-white placeholder-zinc-400 rounded-lg border border-zinc-700 focus:border-zinc-500 focus:outline-none"
+            onChange={(e) => {
+              if (e.target.value) {
+                setShowSearch(true);
+                // Trigger search through MenuSearch component
+              } else {
+                setShowSearch(false);
+                setIsSearching(false);
+              }
+            }}
+          />
+        </div>
         {showSearch && (
-          <div className="px-4 pb-4">
+          <div className="mt-2">
             <MenuSearch
               items={items}
-              categories={categories.filter(cat => cat.type === activeTab)}
+              categories={categories}
               onFilteredItemsChange={handleFilteredItemsChange}
               onSearchStateChange={handleSearchStateChange}
             />
           </div>
         )}
-      </header>
+      </div>
 
-      {/* Unified Category Navigation - Horizontal scrolling chip bar */}
+      {/* Unified Category Navigation - Single row horizontal scrolling */}
       <div className="sticky top-[73px] z-30 bg-black border-b border-zinc-700">
-        <div className="bg-zinc-900/95">
-          {/* All categories in one scrollable row */}
-          <div className="relative">
-            <div className="overflow-x-auto scrollbar-hide">
-              <div className="flex items-center gap-2 px-4 py-3">
-                {/* All Items chip */}
+        <div className="relative">
+          <div className="overflow-x-auto scrollbar-hide">
+            <div className="flex items-center gap-2 px-4 py-3">
+              {/* All chip */}
+              <button
+                onClick={() => {
+                  setActiveCategory('');
+                  setActiveTab('food');
+                }}
+                className={cn(
+                  "px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                  "min-h-[36px]",
+                  activeCategory === ''
+                    ? "bg-white text-black"
+                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                )}
+              >
+                All
+              </button>
+
+              {/* Popular chip */}
+              <button
+                onClick={() => {
+                  setActiveCategory('popular');
+                  setActiveTab('food');
+                }}
+                className={cn(
+                  "flex items-center gap-1.5 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                  "min-h-[36px]",
+                  activeCategory === 'popular'
+                    ? "bg-white text-black"
+                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                )}
+              >
+                <Star className="w-3.5 h-3.5" />
+                Popular
+              </button>
+
+              {/* Food categories */}
+              {foodCategories.map((category) => (
                 <button
+                  key={category.id}
                   onClick={() => {
-                    setActiveCategory('');
+                    setActiveCategory(category.id);
                     setActiveTab('food');
                   }}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
-                    "min-h-[40px] min-w-fit",
-                    !activeCategory && activeCategory === ''
-                      ? "bg-white text-black shadow-md"
-                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                    "px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                    "min-h-[36px]",
+                    activeCategory === category.id
+                      ? "bg-white text-black"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   )}
                 >
-                  <span>All</span>
+                  {category.name}
                 </button>
+              ))}
 
-                {/* Popular chip */}
+              {/* Drink categories */}
+              {drinkCategories.map((category) => (
                 <button
+                  key={category.id}
                   onClick={() => {
-                    setActiveCategory('popular');
-                    setActiveTab('food');
+                    setActiveCategory(category.id);
+                    setActiveTab('drink');
                   }}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
-                    "min-h-[40px] min-w-fit",
-                    activeCategory === 'popular'
-                      ? "bg-gradient-to-r from-yellow-400 to-orange-500 text-black shadow-md"
-                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                    "px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                    "min-h-[36px]",
+                    activeCategory === category.id
+                      ? "bg-white text-black"
+                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                   )}
                 >
-                  <Star className="w-4 h-4" />
-                  <span>Popular</span>
+                  {category.name}
                 </button>
+              ))}
 
-                {/* Divider */}
-                <div className="w-px h-6 bg-zinc-700 mx-1" />
-
-                {/* Food categories */}
-                {foodCategories.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => {
-                      setActiveCategory(category.id);
-                      setActiveTab('food');
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
-                      "min-h-[40px] min-w-fit",
-                      activeCategory === category.id
-                        ? "bg-rose-500 text-white shadow-md"
-                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                    )}
-                  >
-                    <span>{category.name}</span>
-                    {category.item_count !== undefined && category.item_count > 0 && (
-                      <span className="text-xs opacity-70">({category.item_count})</span>
-                    )}
-                  </button>
-                ))}
-
-                {/* Divider */}
-                <div className="w-px h-6 bg-zinc-700 mx-1" />
-
-                {/* Drinks chip */}
-                <button
-                  onClick={() => {
-                    if (drinkCategories.length > 0) {
-                      setActiveCategory(drinkCategories[0].id);
-                      setActiveTab('drink');
-                    }
-                  }}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
-                    "min-h-[40px] min-w-fit",
-                    activeTab === 'drink'
-                      ? "bg-cyan-500 text-white shadow-md"
-                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                  )}
-                >
-                  <Wine className="w-4 h-4" />
-                  <span>Drinks</span>
-                </button>
-
-                {/* Drink categories */}
-                {activeTab === 'drink' && drinkCategories.map((category) => (
-                  <button
-                    key={category.id}
-                    onClick={() => {
-                      setActiveCategory(category.id);
-                      setActiveTab('drink');
-                    }}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
-                      "min-h-[40px] min-w-fit",
-                      activeCategory === category.id
-                        ? "bg-cyan-500 text-white shadow-md"
-                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                    )}
-                  >
-                    <span>{category.name}</span>
-                    {category.item_count !== undefined && category.item_count > 0 && (
-                      <span className="text-xs opacity-70">({category.item_count})</span>
-                    )}
-                  </button>
-                ))}
-
-                {/* End padding */}
-                <div className="w-4 flex-shrink-0" />
-              </div>
+              {/* End padding */}
+              <div className="w-4 flex-shrink-0" />
             </div>
-
-            {/* Edge fade indicators */}
-            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-zinc-900 to-transparent pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-zinc-900 to-transparent pointer-events-none" />
           </div>
+
+          {/* Edge fade indicators */}
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black to-transparent pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black to-transparent pointer-events-none" />
         </div>
       </div>
 

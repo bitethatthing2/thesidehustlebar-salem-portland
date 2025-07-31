@@ -942,16 +942,22 @@ export function FoodDrinkCarousel() {
 
   // Filter items based on active filter and search query
   const filteredItems = carouselItems.filter(item => {
-    // First filter by type or special filters
+    // Handle filtering logic
     let typeMatch = false;
-    if (activeFilter === 'all') typeMatch = true;
-    else if (activeFilter === 'popular') typeMatch = item.isPopular === true;
-    else typeMatch = item.type === activeFilter;
     
-    // Filter by subcategory if selected (check both subcategory and category)
-    const subcategoryMatch = activeSubcategory === '' || 
-                            item.subcategory === activeSubcategory ||
-                            item.category === activeSubcategory;
+    if (activeFilter === 'all') {
+      typeMatch = true;
+    } else if (activeFilter === 'popular') {
+      typeMatch = item.isPopular === true;
+    } else if (activeFilter === 'food' || activeFilter === 'drink') {
+      if (activeSubcategory === '') {
+        // Show all items of this type
+        typeMatch = item.type === activeFilter;
+      } else {
+        // Show items of specific category
+        typeMatch = item.type === activeFilter && item.category === activeSubcategory;
+      }
+    }
     
     // Then filter by search query
     const searchMatch = searchQuery === '' || 
@@ -961,7 +967,7 @@ export function FoodDrinkCarousel() {
       item.subcategory?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.features?.some(feature => feature.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    return typeMatch && subcategoryMatch && searchMatch;
+    return typeMatch && searchMatch;
   });
 
   // Responsive items per view - more items on desktop for smaller cards
@@ -1025,7 +1031,6 @@ export function FoodDrinkCarousel() {
 
   const handleFilterChange = (filter: 'all' | 'food' | 'drink' | 'popular') => {
     setActiveFilter(filter);
-    setActiveSubcategory(''); // Reset subcategory when changing main filter
     setIsAutoPlaying(false);
   };
 
@@ -1082,92 +1087,86 @@ export function FoodDrinkCarousel() {
         </div>
       </div>
 
-      {/* Main Filter Buttons */}
-      <div className="flex justify-center gap-2 sm:gap-3 mb-4">
-        <button
-          onClick={() => handleFilterChange('all')}
-          className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 shadow-sm border ${
-            activeFilter === 'all'
-              ? 'bg-red-600 text-white border-red-600 shadow-lg transform scale-105'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-red-300 hover:text-red-600 hover:shadow-md'
-          }`}
-        >
-          All Items
-        </button>
-        <button
-          onClick={() => handleFilterChange('popular')}
-          className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 flex items-center gap-1 sm:gap-2 shadow-sm border ${
-            activeFilter === 'popular'
-              ? 'bg-red-600 text-white border-red-600 shadow-lg transform scale-105'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-red-300 hover:text-red-600 hover:shadow-md'
-          }`}
-        >
-          <Star className="h-3 w-3 sm:h-4 sm:w-4" />
-          Popular
-        </button>
-        <button
-          onClick={() => handleFilterChange('food')}
-          className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 flex items-center gap-1 sm:gap-2 shadow-sm border ${
-            activeFilter === 'food'
-              ? 'bg-red-600 text-white border-red-600 shadow-lg transform scale-105'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-red-300 hover:text-red-600 hover:shadow-md'
-          }`}
-        >
-          <Utensils className="h-3 w-3 sm:h-4 sm:w-4" />
-          Food
-        </button>
-        <button
-          onClick={() => handleFilterChange('drink')}
-          className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 flex items-center gap-1 sm:gap-2 shadow-sm border ${
-            activeFilter === 'drink'
-              ? 'bg-red-600 text-white border-red-600 shadow-lg transform scale-105'
-              : 'bg-white text-gray-700 border-gray-200 hover:border-red-300 hover:text-red-600 hover:shadow-md'
-          }`}
-        >
-          <Wine className="h-3 w-3 sm:h-4 sm:w-4" />
-          Drinks
-        </button>
-      </div>
-
-      {/* Category Filter Buttons */}
-      {(activeFilter === 'food' || activeFilter === 'drink') && (
-        <div className="flex justify-center gap-2 mb-4 sm:mb-6">
-          <div className="flex flex-wrap justify-center gap-2 max-w-4xl">
+      {/* Horizontal Scrolling Chip Bar - Single Row */}
+      <div className="relative mb-6">
+        <div className="overflow-x-auto scrollbar-hide">
+          <div className="flex items-center gap-2 px-4 py-3 min-w-max">
+            {/* All chip */}
             <button
-              onClick={() => handleSubcategoryChange('')}
-              className={`px-2 sm:px-3 py-1 rounded-md text-xs font-medium transition-all duration-200 ${
-                activeSubcategory === ''
-                  ? (activeFilter === 'food' ? 'bg-orange-500 text-white' : 'bg-blue-500 text-white')
-                  : 'bg-gray-100 text-gray-600 hover:bg-orange-100 hover:text-orange-600'
+              onClick={() => {
+                handleFilterChange('all');
+                handleSubcategoryChange('');
+              }}
+              className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
+                activeFilter === 'all'
+                  ? 'bg-white text-black'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
-              All {activeFilter === 'food' ? 'Food' : 'Drinks'}
+              All
             </button>
-            {activeFilter === 'food' && 
-              Array.from(new Set(carouselItems.filter(item => item.type === 'food').map(item => item.category))).map(category => (
-                <button 
-                  key={category}
-                  onClick={() => handleSubcategoryChange(category)} 
-                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${activeSubcategory === category ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-orange-100'}`}
-                >
-                  {category}
-                </button>
-              ))
-            }
-            {activeFilter === 'drink' && 
-              Array.from(new Set(carouselItems.filter(item => item.type === 'drink').map(item => item.category))).map(category => (
-                <button 
-                  key={category}
-                  onClick={() => handleSubcategoryChange(category)} 
-                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all ${activeSubcategory === category ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-blue-100'}`}
-                >
-                  {category}
-                </button>
-              ))
-            }
+
+            {/* Popular chip */}
+            <button
+              onClick={() => {
+                handleFilterChange('popular');
+                handleSubcategoryChange('');
+              }}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
+                activeFilter === 'popular'
+                  ? 'bg-white text-black'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <Star className="w-3.5 h-3.5" />
+              Popular
+            </button>
+
+            {/* Food categories */}
+            {Array.from(new Set(carouselItems.filter(item => item.type === 'food').map(item => item.category))).map(category => (
+              <button
+                key={category}
+                onClick={() => {
+                  handleFilterChange('food');
+                  handleSubcategoryChange(category);
+                }}
+                className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
+                  activeFilter === 'food' && activeSubcategory === category
+                    ? 'bg-white text-black'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+
+            {/* Drink categories */}
+            {Array.from(new Set(carouselItems.filter(item => item.type === 'drink').map(item => item.category))).map(category => (
+              <button
+                key={`drink-${category}`}
+                onClick={() => {
+                  handleFilterChange('drink');
+                  handleSubcategoryChange(category);
+                }}
+                className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
+                  activeFilter === 'drink' && activeSubcategory === category
+                    ? 'bg-white text-black'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+
+            {/* End padding */}
+            <div className="w-4 flex-shrink-0" />
           </div>
         </div>
-      )}
+
+        {/* Edge fade indicators */}
+        <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black to-transparent pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-black to-transparent pointer-events-none" />
+      </div>
 
       {/* Carousel Container */}
       <div 

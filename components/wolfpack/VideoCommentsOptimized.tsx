@@ -30,35 +30,20 @@ interface SupabaseComment {
   id: string;
   user_id: string;
   video_id: string;
-  parent_comment_id?: string;
   content: string;
   created_at: string;
-  updated_at: string;
-  is_deleted: boolean;
-  is_pinned?: boolean;
-  is_edited?: boolean;
-  like_count?: number;
-  likes_count?: number;
+  parent_comment_id?: string | null;
   users?: CommentUser | CommentUser[];
+  replies?: SupabaseComment[];
+  like_count?: number;
+  user_liked?: boolean;
 }
 
-interface Comment {
-  id: string;
-  user_id: string;
-  video_id: string;
-  parent_comment_id?: string;
-  content: string;
-  created_at: string;
-  updated_at: string;
-  is_deleted: boolean;
-  is_pinned?: boolean;
-  is_edited?: boolean;
-  user?: CommentUser;
+interface Comment extends SupabaseComment {
+  user: CommentUser;
+  replies: Comment[];
   like_count: number;
   user_liked: boolean;
-  reaction_count: number;
-  replies: Comment[];
-  replies_count: number;
 }
 
 interface VideoCommentsProps {
@@ -66,32 +51,26 @@ interface VideoCommentsProps {
   isOpen: boolean;
   onClose: () => void;
   initialCommentCount: number;
-  onCommentCountChange: (count: number) => void;
+  onCommentCountChange?: (count: number) => void;
 }
 
-// Service class
+// Service class for comment operations
 class WolfpackCommentsService {
-  private supabase = supabase;
-  
-  async fetchComments(videoId: string, currentUserId?: string) {
+  async fetchComments(postId: string, userId?: string): Promise<Comment[]> {
     try {
-      // First, try with public.users relationship (most recent schema)
-      let { data: comments, error } = await this.supabase
+      console.log('🔍 Fetching comments for video:', postId);
+
+      // Base query with user data
+      let query = supabase
         .from('wolfpack_comments')
         .select(`
           id,
           user_id,
           video_id,
-          parent_comment_id,
           content,
           created_at,
-          updated_at,
-          is_deleted,
-          like_count,
-          likes_count,
-          is_pinned,
-          is_edited,
-          users!left (
+          parent_comment_id,
+          users!wolfpack_comments_user_id_fkey (
             id,
             first_name,
             last_name,
@@ -101,181 +80,109 @@ class WolfpackCommentsService {
             profile_image_url
           )
         `)
-        .eq('video_id', videoId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false }) as { data: SupabaseComment[] | null, error: any };
+        .eq('video_id', postId)
+        .order('created_at', { ascending: true });
 
-      // If the query fails or returns no user data, try fetching comments and users separately
-      if (error || !comments || comments.length === 0 || (comments.length > 0 && !comments[0].users)) {
-        console.log('Primary query failed or returned no user data, trying fallback approach:', error?.message);
-        
-        // Fallback: Get comments first, then fetch user data separately
-        const { data: commentsOnly, error: commentsError } = await this.supabase
-          .from('wolfpack_comments')
-          .select(`
-            id,
-            user_id,
-            video_id,
-            parent_comment_id,
-            content,
-            created_at,
-            updated_at,
-            is_deleted,
-            like_count,
-            likes_count,
-            is_pinned,
-            is_edited
-          `)
-          .eq('video_id', videoId)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
+      const { data: comments, error } = await query;
 
-        if (commentsError) throw commentsError;
-        
-        if (commentsOnly && commentsOnly.length > 0) {
-          const userIds = [...new Set(commentsOnly.map(c => c.user_id))];
-          
-          // Try to fetch from public.users first
-          const { data: userData } = await this.supabase
-            .from('users')
-            .select('id, first_name, last_name, avatar_url, display_name, username, profile_image_url')
-            .in('id', userIds);
+      if (error) {
+        console.error('❌ Error fetching comments:', error);
+        throw error;
+      }
 
-          // Create a user lookup map
-          const userMap = new Map();
-          if (userData) {
-            userData.forEach(user => userMap.set(user.id, user));
-          }
+      if (!comments || comments.length === 0) {
+        console.log('📭 No comments found for video:', postId);
+        return [];
+      }
 
-          // Combine comments with user data
-          comments = commentsOnly.map(comment => ({
-            ...comment,
-            users: userMap.get(comment.user_id) || null
-          }));
-        } else {
-          comments = [];
+      console.log('✅ Raw comments fetched:', comments.length);
+
+      // Get user IDs for batch fetching reactions
+      const userIds = [...new Set(comments.map(c => c.user_id))];
+      const userMap = new Map();
+
+      // Get comment IDs for batch fetching reactions
+      const commentIds = (comments || []).map(c => c.id);
+      const reactionMap = new Map<string, number>();
+      const userReactionsSet = new Set<string>();
+
+      // Batch fetch reactions if user is logged in
+      if (userId && commentIds.length > 0) {
+        const { data: reactions } = await supabase
+          .from('wolfpack_comment_reactions')
+          .select('comment_id, user_id')
+          .in('comment_id', commentIds);
+
+        if (reactions) {
+          reactions.forEach(reaction => {
+            const count = reactionMap.get(reaction.comment_id) || 0;
+            reactionMap.set(reaction.comment_id, count + 1);
+            
+            if (reaction.user_id === userId) {
+              userReactionsSet.add(reaction.comment_id);
+            }
+          });
         }
       }
 
-      if (error) throw error;
-
-      const commentIds = (comments || []).map(c => c.id);
-      
-      if (commentIds.length === 0) return [];
-
-      const { data: reactions } = await this.supabase
-        .from('wolfpack_comment_reactions')
-        .select('comment_id, user_id, reaction_type')
-        .in('comment_id', commentIds);
-
-      const reactionMap = new Map<string, number>();
-      const userReactionsSet = new Set<string>();
-      
-      (reactions || []).forEach(reaction => {
-        const key = reaction.comment_id;
-        reactionMap.set(key, (reactionMap.get(key) || 0) + 1);
+      // Transform comments with proper typing
+      const transformedComments = (comments || []).map(comment => {
+        const userObject = Array.isArray(comment.users) ? comment.users[0] : comment.users;
         
-        if (currentUserId && reaction.user_id === currentUserId) {
-          userReactionsSet.add(reaction.comment_id);
+        return {
+          ...comment,
+          user: userObject || {
+            id: comment.user_id,
+            first_name: 'Unknown',
+            last_name: 'User'
+          },
+          replies: [] as Comment[],
+          like_count: reactionMap.get(comment.id) || 0,
+          user_liked: userReactionsSet.has(comment.id)
+        } as Comment;
+      });
+
+      // Build nested structure
+      const commentMap = new Map();
+      const rootComments: Comment[] = [];
+
+      // First pass: create map of all comments
+      transformedComments.forEach(comment => {
+        commentMap.set(comment.id, { ...comment, replies: [] });
+      });
+
+      // Second pass: build tree structure
+      transformedComments.forEach(comment => {
+        if (comment.parent_comment_id) {
+          const parent = commentMap.get(comment.parent_comment_id);
+          if (parent) {
+            parent.replies.push(commentMap.get(comment.id));
+          }
+        } else {
+          rootComments.push(commentMap.get(comment.id));
         }
       });
 
-      const transformedComments = (comments || []).map(comment => {
-        // Handle users as either array or single object, with fallback for missing user data
-        const userObject = Array.isArray(comment.users) ? comment.users[0] : comment.users;
-        
-        // Create fallback user object if user data is missing
-        const fallbackUser = userObject || {
-          id: comment.user_id,
-          first_name: 'Unknown',
-          last_name: 'User',
-          avatar_url: null,
-          display_name: 'Unknown User',
-          username: 'unknown',
-          profile_image_url: null
-        };
-        
-        return {
-          id: comment.id,
-          user_id: comment.user_id,
-          video_id: comment.video_id,
-          parent_comment_id: comment.parent_comment_id,
-          content: comment.content,
-          created_at: comment.created_at,
-          updated_at: comment.updated_at,
-          is_deleted: comment.is_deleted,
-          is_pinned: comment.is_pinned,
-          is_edited: comment.is_edited,
-          user: {
-            id: fallbackUser.id,
-            first_name: fallbackUser.first_name,
-            last_name: fallbackUser.last_name,
-            avatar_url: fallbackUser.profile_image_url || fallbackUser.avatar_url,
-            display_name: fallbackUser.display_name || fallbackUser.username || 'Unknown User',
-            username: fallbackUser.username || 'unknown',
-            profile_image_url: fallbackUser.profile_image_url
-          },
-          like_count: comment.likes_count || comment.like_count || 0,
-          user_liked: userReactionsSet.has(comment.id),
-          reaction_count: reactionMap.get(comment.id) || 0,
-          replies: [],
-          replies_count: 0
-        };
-      });
+      console.log('🌳 Comments tree built:', rootComments.length, 'root comments');
+      return rootComments;
 
-      return this.organizeCommentsIntoTree(transformedComments);
     } catch (error) {
-      console.error('Error in fetchComments:', error);
+      console.error('❌ Error in fetchComments:', error);
       throw error;
     }
   }
 
-  private organizeCommentsIntoTree(comments: any[]) {
-    const commentMap = new Map();
-    const rootComments: any[] = [];
-
-    comments.forEach(comment => {
-      commentMap.set(comment.id, { ...comment, replies: [] });
-    });
-
-    comments.forEach(comment => {
-      if (comment.parent_comment_id) {
-        const parent = commentMap.get(comment.parent_comment_id);
-        if (parent) {
-          parent.replies.push(commentMap.get(comment.id));
-          parent.replies_count = parent.replies.length;
-        }
-      } else {
-        rootComments.push(commentMap.get(comment.id));
-      }
-    });
-
-    rootComments.forEach(comment => {
-      this.sortReplies(comment);
-    });
-
-    return rootComments;
-  }
-
-  private sortReplies(comment: any) {
-    if (comment.replies && comment.replies.length > 0) {
-      comment.replies.sort((a: any, b: any) => 
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-      comment.replies.forEach((reply: any) => this.sortReplies(reply));
-    }
-  }
-
-  subscribeToComments(videoId: string, callback: (payload: any) => void): RealtimeChannel {
-    return this.supabase
-      .channel(`comments:${videoId}`)
+  // Subscribe to real-time comment changes
+  subscribeToComments(postId: string, callback: (payload: any) => void) {
+    return supabase
+      .channel(`comments:${postId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'wolfpack_comments',
-          filter: `video_id=eq.${videoId}`
+          filter: `video_id=eq.${postId}`
         },
         callback
       )
@@ -318,88 +225,115 @@ function VideoComments({
   const inputRef = useRef<HTMLInputElement>(null);
   const replyInputRef = useRef<HTMLInputElement>(null);
 
+  // Helper function to calculate total comments including replies
   const calculateTotalComments = (commentsList: Comment[]): number => {
-    let count = 0;
     const countComments = (commentList: Comment[]) => {
-      commentList.forEach(comment => {
-        if (!comment.is_deleted) {
-          count++;
-          if (comment.replies && comment.replies.length > 0) {
-            countComments(comment.replies);
-          }
-        }
-      });
+      return commentList.reduce((count, comment) => {
+        return count + 1 + countComments(comment.replies || []);
+      }, 0);
     };
-    countComments(commentsList);
-    return count;
+    return countComments(commentsList);
   };
 
+  // Helper function to remove comment from tree structure
   const removeCommentFromTree = (commentsList: Comment[], commentId: string): Comment[] => {
-    return commentsList
-      .filter(comment => comment.id !== commentId)
-      .map(comment => ({
+    return commentsList.reduce((acc: Comment[], comment) => {
+      if (comment.id === commentId) {
+        // Skip this comment (remove it)
+        return acc;
+      }
+      
+      // Process replies recursively
+      const updatedComment = {
         ...comment,
-        replies: comment.replies ? removeCommentFromTree(comment.replies, commentId) : []
-      }));
+        replies: removeCommentFromTree(comment.replies || [], commentId)
+      };
+      
+      return [...acc, updatedComment];
+    }, []);
   };
 
+  // Load comments
   const loadComments = useCallback(async () => {
+    if (!postId) return;
+    
     try {
       setLoading(true);
-      console.log('🔄 Loading comments for video:', postId);
+      console.log('🔄 Loading comments for post:', postId);
       
       const commentsData = await commentsService.fetchComments(postId, user?.id);
-      console.log('✅ Comments loaded:', commentsData?.length || 0, 'comments');
       
       if (mountedRef.current) {
         setComments(commentsData);
         const totalCount = calculateTotalComments(commentsData);
         setCommentCount(totalCount);
-        onCommentCountChange(totalCount);
-        
-        console.log('📊 Comment count updated:', totalCount);
-        console.log('🎯 Setting loading to false, comments state:', commentsData);
+        onCommentCountChange?.(totalCount);
+        console.log('✅ Comments loaded:', commentsData.length, 'root comments, total:', totalCount);
       }
     } catch (error) {
       console.error('❌ Error loading comments:', error);
       if (mountedRef.current) {
         toast({
           title: 'Error',
-          description: `Failed to load comments: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          description: 'Failed to load comments',
           variant: 'destructive'
         });
       }
     } finally {
-      console.log('🏁 loadComments finally block, mountedRef.current:', mountedRef.current);
       if (mountedRef.current) {
         setLoading(false);
-        console.log('✅ Loading set to false');
       }
     }
   }, [postId, user?.id, onCommentCountChange]);
 
+  // Handle real-time comment deletion
   const handleCommentDelete = useCallback((deletedData: any) => {
-    if (mountedRef.current) {
-      setComments(prev => removeCommentFromTree(prev, deletedData.id));
-      setCommentCount(prev => Math.max(0, prev - 1));
-      onCommentCountChange(Math.max(0, commentCount - 1));
+    console.log('🗑️ Comment deleted:', deletedData);
+    if (deletedData.old?.id) {
+      setComments(prevComments => {
+        const updatedComments = removeCommentFromTree(prevComments, deletedData.old.id);
+        const newTotal = calculateTotalComments(updatedComments);
+        setCommentCount(newTotal);
+        onCommentCountChange?.(newTotal);
+        return updatedComments;
+      });
     }
-  }, [commentCount, onCommentCountChange]);
+  }, [onCommentCountChange]);
 
+  // Setup real-time subscription
   const setupRealtimeSubscription = useCallback(() => {
-    channelRef.current = commentsService.subscribeToComments(postId, async (payload) => {
-      if (payload.table === 'wolfpack_comments') {
-        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-          await loadComments();
-        } else if (payload.eventType === 'DELETE') {
-          handleCommentDelete(payload.old);
-        }
-      } else if (payload.table === 'wolfpack_comment_reactions') {
-        await loadComments();
+    if (!postId) return;
+
+    console.log('🔔 Setting up real-time subscription for post:', postId);
+    
+    try {
+      if (channelRef.current) {
+        channelRef.current.unsubscribe();
       }
-    });
+
+      channelRef.current = commentsService.subscribeToComments(postId, (payload) => {
+        console.log('📡 Real-time update received:', payload);
+        
+        if (payload.eventType === 'DELETE') {
+          handleCommentDelete(payload);
+          return;
+        }
+
+        // For INSERT and UPDATE, reload comments to get the full structure
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          setTimeout(() => {
+            if (mountedRef.current) {
+              loadComments();
+            }
+          }, 500);
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error setting up real-time subscription:', error);
+    }
   }, [postId, loadComments, handleCommentDelete]);
 
+  // Initial load and subscription setup
   useEffect(() => {
     if (isOpen && postId) {
       loadComments();
@@ -407,21 +341,15 @@ function VideoComments({
     }
 
     return () => {
+      mountedRef.current = false;
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        channelRef.current.unsubscribe();
+        channelRef.current = null;
       }
     };
   }, [isOpen, postId, loadComments, setupRealtimeSubscription]);
 
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
-      }
-    };
-  }, []);
-
+  // Submit new comment
   const handleSubmitComment = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || submitting) return;
@@ -437,9 +365,10 @@ function VideoComments({
 
     try {
       setSubmitting(true);
-      console.log('💬 Submitting comment:', {
-        user_id: user.id,
-        video_id: postId,
+
+      console.log('📝 Submitting comment:', {
+        userId: user.id,
+        postId,
         content: newComment.trim()
       });
 
@@ -478,6 +407,7 @@ function VideoComments({
     }
   }, [newComment, submitting, user, postId, loadComments]);
 
+  // Submit reply
   const handleSubmitReply = useCallback(async (e: React.FormEvent, parentCommentId: string) => {
     e.preventDefault();
     if (!replyContent.trim() || submittingReply) return;
@@ -525,6 +455,7 @@ function VideoComments({
     }
   }, [replyContent, submittingReply, user, postId]);
 
+  // Handle like/unlike comment
   const handleLikeComment = useCallback(async (commentId: string) => {
     if (!user?.id) {
       toast({
@@ -597,10 +528,7 @@ function VideoComments({
   if (!isOpen) return null;
 
   return (
-    <div
-      className={`fixed inset-0 ${getZIndexClass('modal')} flex flex-col`}
-      onClick={(e) => e.target === e.currentTarget && onClose())}
-    >
+    <div className="fixed inset-0 z-50 flex flex-col">
       <div className="flex-1" onClick={onClose}></div>
       
       <div className="bg-black text-white flex flex-col rounded-t-2xl max-h-[70vh] animate-slide-up">
@@ -621,20 +549,19 @@ function VideoComments({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {(() => {
-            console.log('🎯 RENDER DEBUG:', { loading, commentsLength: comments.length, commentCount });
-            return loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-              </div>
-            ) : comments.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-600" />
-                <p className="text-white">No comments yet</p>
-                <p className="text-sm text-gray-400">Be the first to comment!</p>
-              </div>
-            ) : (
+        {/* Comments List */}
+        <div className="flex-1 overflow-y-auto px-4 space-y-3 max-h-[40vh]">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">
+              <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-600" />
+              <p className="text-white">No comments yet</p>
+              <p className="text-sm text-gray-400">Be the first to comment!</p>
+            </div>
+          ) : (
             comments.map((comment) => (
               <CommentItem
                 key={comment.id}
@@ -658,8 +585,8 @@ function VideoComments({
                 setReplyingTo={setReplyingTo}
                 likingCommentId={likingCommentId}
               />
-            ));
-          })()}
+            ))
+          )}
         </div>
 
         <div className="border-t border-gray-800 bg-gray-900/95 backdrop-blur-sm p-3 pb-safe">
@@ -668,47 +595,32 @@ function VideoComments({
               <p className="text-gray-400 mb-2">Sign in to comment</p>
               <button
                 onClick={() => window.location.href = '/login'}
-                className="text-red-500 hover:text-red-400 font-medium"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 Sign In
               </button>
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="flex gap-2 justify-center pb-2 overflow-x-auto">
-                {['❤️', '😂', '😍', '👏', '🔥', '💯', '🎉', '😢'].map((emoji) => (
-                  <button
-                    key={emoji}
-                    onClick={() => setNewComment(prev => prev + emoji)}
-                    className="text-2xl p-2 hover:bg-gray-800 rounded-lg transition-colors flex-shrink-0"
-                    aria-label={`Add ${emoji} emoji`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-              
-              <form onSubmit={handleSubmitComment} className="flex gap-2 items-center">
+              <form onSubmit={handleSubmitComment} className="flex gap-2">
                 <input
                   ref={inputRef}
                   type="text"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Add a comment..."
-                  className="flex-1 bg-gray-800 rounded-full px-4 py-2.5 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="flex-1 bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                   disabled={submitting}
-                  maxLength={500}
                 />
                 <button
                   type="submit"
                   disabled={!newComment.trim() || submitting}
-                  className="p-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded-full transition-colors disabled:cursor-not-allowed"
-                  aria-label="Send comment"
+                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-1"
                 >
                   {submitting ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   ) : (
-                    <Send className="h-5 w-5 text-white" />
+                    <Send className="h-4 w-4" />
                   )}
                 </button>
               </form>
@@ -727,7 +639,7 @@ interface CommentItemProps {
   replyingTo: string | null;
   replyContent: string;
   setReplyContent: (content: string) => void;
-  onSubmitReply: (e: React.FormEvent, parentId: string) => void;
+  onSubmitReply: (e: React.FormEvent, parentCommentId: string) => void;
   submittingReply: boolean;
   replyInputRef: React.RefObject<HTMLInputElement>;
   currentUser: any;
@@ -743,11 +655,11 @@ function CommentItem({
   comment, 
   onLike, 
   onReply, 
-  replyingTo, 
-  replyContent, 
-  setReplyContent, 
-  onSubmitReply, 
-  submittingReply, 
+  replyingTo,
+  replyContent,
+  setReplyContent,
+  onSubmitReply,
+  submittingReply,
   replyInputRef,
   currentUser,
   isLiking,
@@ -762,44 +674,44 @@ function CommentItem({
     const commentTime = new Date(timestamp);
     const diffInMinutes = Math.floor((now.getTime() - commentTime.getTime()) / (1000 * 60));
     
-    if (diffInMinutes < 1) return 'now';
-    if (diffInMinutes < 60) return `${diffInMinutes}m`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h`;
-    if (diffInMinutes < 10080) return `${Math.floor(diffInMinutes / 1440)}d`;
-    if (diffInMinutes < 43200) return `${Math.floor(diffInMinutes / 10080)}w`;
-    return `${Math.floor(diffInMinutes / 43200)}mo`;
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return commentTime.toLocaleDateString();
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex gap-3">
-        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-gray-800">
-          <Image
-            src={getAvatarUrl(comment.user)}
-            alt={getDisplayName(comment.user)}
-            width={32}
-            height={32}
-            className="w-full h-full object-cover"
-          />
+        <div className="flex-shrink-0">
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700">
+            <Image
+              src={getAvatarUrl(comment.user)}
+              alt={getDisplayName(comment.user)}
+              width={32}
+              height={32}
+              className="w-full h-full object-cover"
+            />
+          </div>
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className="font-semibold text-white text-sm">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-medium text-white text-sm">
               {getDisplayName(comment.user)}
             </span>
             <span className="text-gray-400 text-xs">
               {formatTimeAgo(comment.created_at)}
             </span>
-            {comment.is_edited && (
-              <span className="text-gray-500 text-xs">(edited)</span>
-            )}
-            {comment.is_pinned && (
-              <span className="text-red-500 text-xs">📌 Pinned</span>
-            )}
           </div>
           
-          <p className="text-gray-200 text-sm whitespace-pre-wrap break-words">
+          <p className="text-gray-100 text-sm leading-relaxed break-words">
             {comment.content}
           </p>
           
@@ -807,91 +719,94 @@ function CommentItem({
             <button
               onClick={onLike}
               disabled={isLiking}
-              className={`flex items-center gap-1 transition-colors text-xs ${
+              className={`flex items-center gap-1 text-xs transition-colors ${
                 comment.user_liked 
-                  ? 'text-red-500' 
-                  : 'text-gray-400 hover:text-red-500'
+                  ? 'text-red-500 hover:text-red-400' 
+                  : 'text-gray-400 hover:text-red-400'
               } ${isLiking ? 'opacity-50 cursor-not-allowed' : ''}`}
-              aria-label={comment.user_liked ? 'Unlike comment' : 'Like comment'}
             >
-              <Heart 
-                className="h-4 w-4" 
-                fill={comment.user_liked ? 'currentColor' : 'none'} 
-              />
-              {comment.like_count > 0 && <span>{comment.like_count}</span>}
+              <Heart className={`h-4 w-4 ${comment.user_liked ? 'fill-current' : ''}`} />
+              {comment.like_count > 0 && (
+                <span>{comment.like_count}</span>
+              )}
             </button>
             
-            {currentUser && (
-              <button
-                onClick={onReply}
-                className="flex items-center gap-1 text-gray-400 hover:text-blue-400 transition-colors text-xs"
-                aria-label="Reply to comment"
-              >
-                <ReplyIcon className="h-4 w-4" />
-                Reply
-              </button>
-            )}
+            <button
+              onClick={onReply}
+              className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-400 transition-colors"
+            >
+              <ReplyIcon className="h-4 w-4" />
+              Reply
+            </button>
           </div>
+          
+          {/* Reply Input */}
+          {replyingTo === comment.id && (
+            <form 
+              onSubmit={(e) => onSubmitReply(e, comment.id)}
+              className="mt-3 flex gap-2"
+            >
+              <input
+                ref={replyInputRef}
+                type="text"
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder={`Reply to ${getDisplayName(comment.user)}...`}
+                className="flex-1 bg-gray-800 text-white px-3 py-2 rounded-lg border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                disabled={submittingReply}
+              />
+              <button
+                type="submit"
+                disabled={!replyContent.trim() || submittingReply}
+                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded-lg transition-colors text-sm"
+              >
+                {submittingReply ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  'Reply'
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="text-gray-400 hover:text-white px-2 py-2 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </form>
+          )}
+          
+          {/* Replies */}
+          {comment.replies && comment.replies.length > 0 && (
+            <div className="mt-3 space-y-2 border-l border-gray-700 pl-3">
+              {comment.replies.map((reply) => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  onLike={() => handleLikeComment(reply.id)}
+                  onReply={() => {
+                    setReplyingTo(reply.id);
+                    setTimeout(() => replyInputRef.current?.focus(), 100);
+                  }}
+                  replyingTo={replyingTo}
+                  replyContent={replyContent}
+                  setReplyContent={setReplyContent}
+                  onSubmitReply={onSubmitReply}
+                  submittingReply={submittingReply}
+                  replyInputRef={replyInputRef}
+                  currentUser={currentUser}
+                  isLiking={likingCommentId === reply.id}
+                  getDisplayName={getDisplayName}
+                  getAvatarUrl={getAvatarUrl}
+                  handleLikeComment={handleLikeComment}
+                  setReplyingTo={setReplyingTo}
+                  likingCommentId={likingCommentId}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
-      
-      {replyingTo === comment.id && currentUser && (
-        <form onSubmit={(e) => onSubmitReply(e, comment.id)} className="ml-11 flex gap-2">
-          <input
-            ref={replyInputRef}
-            type="text"
-            value={replyContent}
-            onChange={(e) => setReplyContent(e.target.value)}
-            placeholder="Write a reply..."
-            className="flex-1 text-sm px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500"
-            disabled={submittingReply}
-            maxLength={500}
-          />
-          <button
-            type="submit"
-            disabled={!replyContent.trim() || submittingReply}
-            className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-full hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-          >
-            {submittingReply ? '...' : 'Reply'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setReplyingTo(null)}
-            className="px-3 py-1.5 text-xs font-medium bg-gray-700 text-white rounded-full hover:bg-gray-600 transition-colors"
-          >
-            Cancel
-          </button>
-        </form>
-      )}
-      
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="ml-11 space-y-3">
-          {comment.replies.map((reply) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              onLike={() => handleLikeComment(reply.id)}
-              onReply={() => {
-                setReplyingTo(reply.id);
-                setTimeout(() => replyInputRef.current?.focus(), 100);
-              }}
-              replyingTo={replyingTo}
-              replyContent={replyContent}
-              setReplyContent={setReplyContent}
-              onSubmitReply={onSubmitReply}
-              submittingReply={submittingReply}
-              replyInputRef={replyInputRef}
-              currentUser={currentUser}
-              isLiking={likingCommentId === reply.id}
-              getDisplayName={getDisplayName}
-              getAvatarUrl={getAvatarUrl}
-              handleLikeComment={handleLikeComment}
-              setReplyingTo={setReplyingTo}
-              likingCommentId={likingCommentId}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
