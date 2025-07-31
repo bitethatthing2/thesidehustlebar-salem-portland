@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { 
   UtensilsCrossed, 
   Wine, 
+  Utensils,
   AlertCircle, 
   RefreshCw,
   ArrowLeft,
@@ -70,6 +71,7 @@ export default function MenuClient({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [sectionToggle, setSectionToggle] = useState<'food' | 'drinks'>('food');
 
   // Cart management
   const { cartCount, addToCart } = useCart();
@@ -401,8 +403,64 @@ export default function MenuClient({
         )}
       </div>
 
-      {/* Unified Category Navigation - Single row horizontal scrolling */}
-      <div className="sticky top-[73px] z-30 bg-black border-b border-zinc-700">
+      {/* Food/Drinks Section Toggle - Side by Side */}
+      <div className="sticky top-[73px] z-30 bg-black border-b border-zinc-700 pb-4">
+        <div className="flex justify-center gap-3 pt-4 mb-4">
+          <button
+            onClick={() => {
+              setSectionToggle('food');
+              setActiveCategory(''); // Reset to "All" when switching to food
+              setActiveTab('food');
+              // Force reload food items to reset display completely
+              fetchAllMenuItems();
+            }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium text-sm transition-all shadow-lg ${
+              sectionToggle === 'food'
+                ? 'bg-white text-black border-2 border-white'
+                : 'bg-zinc-800 text-zinc-300 border-2 border-zinc-700 hover:bg-zinc-700 hover:text-white'
+            }`}
+          >
+            <Utensils className="w-4 h-4" />
+            Food
+          </button>
+          <button
+            onClick={() => {
+              setSectionToggle('drinks');
+              setActiveCategory(''); // Reset to "All" when switching to drinks
+              setActiveTab('drink');
+              // Force reload drink items by fetching from drink categories
+              const loadDrinkItems = async () => {
+                try {
+                  setLoading(true);
+                  const allDrinkItems = [];
+                  for (const category of initialDrinkCategories) {
+                    const response = await fetch(`/api/menu-items/${category.id}`);
+                    if (response.ok) {
+                      const items = await response.json();
+                      allDrinkItems.push(...items);
+                    }
+                  }
+                  setItems(allDrinkItems);
+                } catch (error) {
+                  console.error('Error loading drink items:', error);
+                } finally {
+                  setLoading(false);
+                }
+              };
+              loadDrinkItems();
+            }}
+            className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium text-sm transition-all shadow-lg ${
+              sectionToggle === 'drinks'
+                ? 'bg-white text-black border-2 border-white'
+                : 'bg-zinc-800 text-zinc-300 border-2 border-zinc-700 hover:bg-zinc-700 hover:text-white'
+            }`}
+          >
+            <Wine className="w-4 h-4" />
+            Drinks
+          </button>
+        </div>
+
+        {/* Unified Category Navigation - Single row horizontal scrolling */}
         <div className="relative">
           <div className="overflow-x-auto scrollbar-hide">
             <div className="flex items-center gap-2 px-4 py-3">
@@ -423,11 +481,11 @@ export default function MenuClient({
                 All
               </button>
 
-              {/* Popular chip */}
+              {/* Popular chip - context-aware based on section */}
               <button
                 onClick={() => {
                   setActiveCategory('popular');
-                  setActiveTab('food');
+                  setActiveTab(sectionToggle === 'drinks' ? 'drink' : 'food');
                 }}
                 className={cn(
                   "flex items-center gap-1.5 px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
@@ -438,48 +496,51 @@ export default function MenuClient({
                 )}
               >
                 <Star className="w-3.5 h-3.5" />
-                Popular
+                {sectionToggle === 'food' ? 'Food Popular' : 'Drink Popular'}
               </button>
 
-              {/* Food categories */}
-              {foodCategories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => {
-                    setActiveCategory(category.id);
-                    setActiveTab('food');
-                  }}
-                  className={cn(
-                    "px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
-                    "min-h-[36px]",
-                    activeCategory === category.id
-                      ? "bg-white text-black"
-                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                  )}
-                >
-                  {category.name}
-                </button>
-              ))}
-
-              {/* Drink categories */}
-              {drinkCategories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => {
-                    setActiveCategory(category.id);
-                    setActiveTab('drink');
-                  }}
-                  className={cn(
-                    "px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
-                    "min-h-[36px]",
-                    activeCategory === category.id
-                      ? "bg-white text-black"
-                      : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                  )}
-                >
-                  {category.name}
-                </button>
-              ))}
+              {/* Dynamic categories based on section toggle */}
+              {sectionToggle === 'food' ? (
+                /* Food categories */
+                foodCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => {
+                      setActiveCategory(category.id);
+                      setActiveTab('food');
+                    }}
+                    className={cn(
+                      "px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                      "min-h-[36px]",
+                      activeCategory === category.id
+                        ? "bg-white text-black"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    )}
+                  >
+                    {category.name}
+                  </button>
+                ))
+              ) : (
+                /* Drink categories */
+                drinkCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => {
+                      setActiveCategory(category.id);
+                      setActiveTab('drink');
+                    }}
+                    className={cn(
+                      "px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all",
+                      "min-h-[36px]",
+                      activeCategory === category.id
+                        ? "bg-white text-black"
+                        : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    )}
+                  >
+                    {category.name}
+                  </button>
+                ))
+              )}
 
               {/* End padding */}
               <div className="w-4 flex-shrink-0" />

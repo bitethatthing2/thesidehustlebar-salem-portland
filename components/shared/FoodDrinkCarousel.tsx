@@ -935,20 +935,23 @@ export function FoodDrinkCarousel() {
   const [activeSubcategory, setActiveSubcategory] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showWatchItMadeModal, setShowWatchItMadeModal] = useState('');
+  const [sectionToggle, setSectionToggle] = useState<'food' | 'drinks'>('food');
   
   // Touch handling states
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  // Filter items based on active filter and search query
+  // Filter items based on active filter, section toggle, and search query
   const filteredItems = carouselItems.filter(item => {
     // Handle filtering logic
     let typeMatch = false;
     
     if (activeFilter === 'all') {
-      typeMatch = true;
+      // When "All" is selected, show items based on current section toggle
+      typeMatch = item.type === (sectionToggle === 'drinks' ? 'drink' : 'food');
     } else if (activeFilter === 'popular') {
-      typeMatch = item.isPopular === true;
+      // Show popular items only for the current section
+      typeMatch = item.isPopular === true && item.type === (sectionToggle === 'drinks' ? 'drink' : 'food');
     } else if (activeFilter === 'food' || activeFilter === 'drink') {
       if (activeSubcategory === '') {
         // Show all items of this type
@@ -1032,6 +1035,13 @@ export function FoodDrinkCarousel() {
   const handleFilterChange = (filter: 'all' | 'food' | 'drink' | 'popular') => {
     setActiveFilter(filter);
     setIsAutoPlaying(false);
+    
+    // Auto-sync section toggle when user selects food/drink categories
+    if (filter === 'food') {
+      setSectionToggle('food');
+    } else if (filter === 'drink') {
+      setSectionToggle('drinks');
+    }
   };
 
   const handleSubcategoryChange = (subcategory: string) => {
@@ -1087,6 +1097,42 @@ export function FoodDrinkCarousel() {
         </div>
       </div>
 
+      {/* Food/Drinks Section Toggle - Side by Side */}
+      <div className="flex justify-center gap-3 mb-4">
+        <button
+          onClick={() => {
+            setSectionToggle('food');
+            setCurrentIndex(0); // Reset to beginning when switching to food
+            setActiveFilter('all');
+            setActiveSubcategory('');
+          }}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium text-sm transition-all shadow-lg ${
+            sectionToggle === 'food'
+              ? 'bg-white text-black border-2 border-white'
+              : 'bg-gray-800 text-gray-300 border-2 border-gray-700 hover:bg-gray-700 hover:text-white'
+          }`}
+        >
+          <Utensils className="w-4 h-4" />
+          Food
+        </button>
+        <button
+          onClick={() => {
+            setSectionToggle('drinks');
+            setCurrentIndex(0); // Reset to beginning when switching to drinks
+            setActiveFilter('all');
+            setActiveSubcategory('');
+          }}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium text-sm transition-all shadow-lg ${
+            sectionToggle === 'drinks'
+              ? 'bg-white text-black border-2 border-white'
+              : 'bg-gray-800 text-gray-300 border-2 border-gray-700 hover:bg-gray-700 hover:text-white'
+          }`}
+        >
+          <Wine className="w-4 h-4" />
+          Drinks
+        </button>
+      </div>
+
       {/* Horizontal Scrolling Chip Bar - Single Row */}
       <div className="relative mb-6">
         <div className="overflow-x-auto scrollbar-hide">
@@ -1106,7 +1152,7 @@ export function FoodDrinkCarousel() {
               All
             </button>
 
-            {/* Popular chip */}
+            {/* Popular chip - context-aware based on section */}
             <button
               onClick={() => {
                 handleFilterChange('popular');
@@ -1119,44 +1165,47 @@ export function FoodDrinkCarousel() {
               }`}
             >
               <Star className="w-3.5 h-3.5" />
-              Popular
+              {sectionToggle === 'food' ? 'Food Popular' : 'Drink Popular'}
             </button>
 
-            {/* Food categories */}
-            {Array.from(new Set(carouselItems.filter(item => item.type === 'food').map(item => item.category))).map(category => (
-              <button
-                key={category}
-                onClick={() => {
-                  handleFilterChange('food');
-                  handleSubcategoryChange(category);
-                }}
-                className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
-                  activeFilter === 'food' && activeSubcategory === category
-                    ? 'bg-white text-black'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-
-            {/* Drink categories */}
-            {Array.from(new Set(carouselItems.filter(item => item.type === 'drink').map(item => item.category))).map(category => (
-              <button
-                key={`drink-${category}`}
-                onClick={() => {
-                  handleFilterChange('drink');
-                  handleSubcategoryChange(category);
-                }}
-                className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
-                  activeFilter === 'drink' && activeSubcategory === category
-                    ? 'bg-white text-black'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
+            {/* Dynamic categories based on section toggle */}
+            {sectionToggle === 'food' ? (
+              /* Food categories */
+              Array.from(new Set(carouselItems.filter(item => item.type === 'food').map(item => item.category))).map(category => (
+                <button
+                  key={category}
+                  onClick={() => {
+                    handleFilterChange('food');
+                    handleSubcategoryChange(category);
+                  }}
+                  className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
+                    activeFilter === 'food' && activeSubcategory === category
+                      ? 'bg-white text-black'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))
+            ) : (
+              /* Drink categories */
+              Array.from(new Set(carouselItems.filter(item => item.type === 'drink').map(item => item.category))).map(category => (
+                <button
+                  key={`drink-${category}`}
+                  onClick={() => {
+                    handleFilterChange('drink');
+                    handleSubcategoryChange(category);
+                  }}
+                  className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap transition-all min-h-[36px] ${
+                    activeFilter === 'drink' && activeSubcategory === category
+                      ? 'bg-white text-black'
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))
+            )}
 
             {/* End padding */}
             <div className="w-4 flex-shrink-0" />
