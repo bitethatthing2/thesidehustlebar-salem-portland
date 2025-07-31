@@ -563,7 +563,7 @@ class UnifiedWolfpackService {
     }
   }
 
-  private organizeCommentsIntoTree(comments: any[]): WolfpackComment[] {
+  private organizeCommentsIntoTree(comments: (WolfpackComment & { users?: WolfpackUser; replies?: WolfpackComment[] })[]): WolfpackComment[] {
     const commentMap = new Map();
     const rootComments: WolfpackComment[] = [];
 
@@ -648,7 +648,7 @@ class UnifiedWolfpackService {
     userId: string;
     title: string;
     body: string;
-    data?: any;
+    data?: Record<string, unknown>;
     type:
       | "dj_broadcast"
       | "message"
@@ -729,7 +729,7 @@ class UnifiedWolfpackService {
     }
   }
 
-  private checkNotificationPreference(type: string, prefs: any): boolean {
+  private checkNotificationPreference(type: string, prefs: Record<string, boolean>): boolean {
     switch (type) {
       case "dj_broadcast":
         return prefs.events !== false;
@@ -752,7 +752,7 @@ class UnifiedWolfpackService {
   async notifyDJBroadcast(
     djId: string,
     eventTitle: string,
-    eventData: any,
+    eventData: Record<string, unknown>,
   ): Promise<ServiceResponse> {
     try {
       // Get all users who should be notified about DJ events
@@ -967,7 +967,7 @@ class UnifiedWolfpackService {
   async notifyAllUsers(
     title: string,
     body: string,
-    data?: any,
+    data?: Record<string, unknown>,
   ): Promise<ServiceResponse> {
     try {
       const { data: users } = await supabase

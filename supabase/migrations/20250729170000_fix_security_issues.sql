@@ -93,7 +93,7 @@ BEGIN
     FROM wolfpack_videos wv
     LEFT JOIN users u ON wv.user_id = u.id
     LEFT JOIN wolfpack_post_likes wpl ON wv.id = wpl.video_id
-    LEFT JOIN wolfpack_commentswc ON wv.id = wc.video_id AND NOT wc.is_deleted
+    LEFT JOIN wolfpack_comments wc ON wv.id = wc.video_id AND NOT wc.is_deleted
     WHERE wv.is_active = true
     GROUP BY wv.id, wv.user_id, u.display_name, u.username, u.avatar_url, u.profile_image_url, 
              wv.description, wv.title, wv.video_url, wv.thumbnail_url, wv.created_at, wv.view_count
@@ -124,7 +124,7 @@ BEGIN
             'thumbnail_url', wv.thumbnail_url,
             'likes_count', COALESCE(wv.like_count, 0),
             'wolfpack_comments_count', COALESCE(
-                (SELECT COUNT(*) FROM wolfpack_commentswc 
+                (SELECT COUNT(*) FROM wolfpack_comments wc 
                  WHERE wc.video_id = wv.id AND NOT wc.is_deleted), 0
             ),
             'shares_count', 0,

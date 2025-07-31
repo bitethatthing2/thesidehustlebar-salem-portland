@@ -25,13 +25,23 @@ export async function getServerSession() {
     const { data: { session }, error } = await supabase.auth.getSession();
     
     if (error) {
-      console.error('[SERVER AUTH] Error getting session:', error);
+      console.error('[SERVER AUTH] Error getting session:', {
+        message: error.message,
+        code: error.status,
+        timestamp: new Date().toISOString(),
+        stack: error.stack
+      });
       return null;
     }
     
     return session;
   } catch (error) {
-    console.error('[SERVER AUTH] Unexpected error:', error);
+    console.error('[SERVER AUTH] Unexpected error:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: 'getServerSession'
+    });
     return null;
   }
 }
@@ -77,13 +87,25 @@ export async function getServerUserProfile() {
       .single();
     
     if (profileError) {
-      console.error('[SERVER AUTH] Error fetching user profile:', profileError);
+      console.error('[SERVER AUTH] Error fetching user profile:', {
+        message: profileError.message,
+        code: profileError.code,
+        hint: profileError.hint,
+        details: profileError.details,
+        timestamp: new Date().toISOString(),
+        userId: user?.id
+      });
       return null;
     }
     
     return profile;
   } catch (error) {
-    console.error('[SERVER AUTH] Unexpected error fetching profile:', error);
+    console.error('[SERVER AUTH] Unexpected error fetching profile:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+      stack: error instanceof Error ? error.stack : undefined,
+      context: 'getServerUserProfile'
+    });
     return null;
   }
 }
@@ -103,10 +125,10 @@ export function createServerSupabaseClient() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: Record<string, unknown>) {
           cookieStore.set({ name, value, ...options });
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: Record<string, unknown>) {
           cookieStore.set({ name, value: '', ...options });
         },
       },
