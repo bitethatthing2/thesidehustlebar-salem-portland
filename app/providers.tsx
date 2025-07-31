@@ -8,13 +8,14 @@ import { QueryProvider } from '@/lib/providers/query-provider';
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <AuthErrorBoundary>
-      <QueryProvider>
+      {/* QueryProvider temporarily disabled - enable when ready to use optimized components */}
+      {/* <QueryProvider> */}
         <AuthProvider>
           <LocationProvider>
             {children}
           </LocationProvider>
         </AuthProvider>
-      </QueryProvider>
+      {/* </QueryProvider> */}
     </AuthErrorBoundary>
   );
 }
