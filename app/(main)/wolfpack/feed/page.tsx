@@ -42,8 +42,15 @@ export default function OptimizedWolfpackFeedPage() {
 
   // Clean, simple feed loading using unified service
   const loadFeed = useCallback(async () => {
-    if (!isAuthenticated || !currentUser) {
-      console.log('[FEED] Not authenticated, skipping feed load');
+    // Don't wait for auth loading to complete, but redirect if not authenticated
+    if (authLoading) {
+      console.log('[FEED] Auth still loading, waiting...');
+      return;
+    }
+    
+    if (!isAuthenticated) {
+      console.log('[FEED] Not authenticated, redirecting to login');
+      router.push('/login');
       return;
     }
 
@@ -89,7 +96,7 @@ export default function OptimizedWolfpackFeedPage() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, currentUser]);
+  }, [isAuthenticated, currentUser, authLoading, router]);
 
   useEffect(() => {
     loadFeed();
@@ -195,12 +202,14 @@ export default function OptimizedWolfpackFeedPage() {
 
 
   // Show minimal loading for faster perceived performance
-  if (loading && wolfpack_videos.length === 0) {
+  if ((authLoading || loading) && wolfpack_videos.length === 0) {
     return (
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-6 w-6 animate-spin text-white" />
-          <p className="text-gray-300 text-sm">Loading...</p>
+          <p className="text-gray-300 text-sm">
+            {authLoading ? 'Checking authentication...' : 'Loading feed...'}
+          </p>
         </div>
       </div>
     );

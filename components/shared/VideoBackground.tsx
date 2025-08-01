@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import Script from 'next/script';
 
 interface VideoBackgroundProps {
   wolfpack_videosrc?: string;
@@ -25,9 +24,21 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
   useEffect(() => {
     if (wolfpack_videosrc && videoRef.current) {
-      videoRef.current.play().catch((error) => {
-        console.log('Video autoplay failed:', error);
-      });
+      const video = videoRef.current;
+      const playPromise = video.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          // Only log if it's not a common autoplay restriction
+          if (error.name !== 'AbortError' && error.name !== 'NotAllowedError') {
+            console.log('Video autoplay failed:', error.name, error.message);
+          }
+          // Fallback: show poster image if available
+          if (video.poster) {
+            video.controls = true;
+          }
+        });
+      }
     }
   }, [wolfpack_videosrc]);
 
@@ -39,17 +50,7 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
 
   if (instagramReelUrl) {
     return (
-      <>
-        <Script 
-          src="//www.instagram.com/embed.js" 
-          strategy="lazyOnload"
-          onLoad={() => {
-            if (window.instgrm) {
-              window.instgrm.Embeds.process();
-            }
-          }}
-        />
-        <div className={`relative w-full h-full overflow-hidden ${className}`} ref={containerRef}>
+      <div className={`relative w-full h-full overflow-hidden ${className}`} ref={containerRef}>
           <div className="absolute inset-0 scale-150 translate-y-[-10%]">
             <blockquote 
               className="instagram-media" 
@@ -76,7 +77,6 @@ export const VideoBackground: React.FC<VideoBackgroundProps> = ({
             />
           )}
         </div>
-      </>
     );
   }
 
