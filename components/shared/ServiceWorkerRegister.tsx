@@ -181,7 +181,7 @@ export default function ServiceWorkerRegister() {
 
         // Register the service worker with a more reliable approach
         console.log('[ServiceWorker] Registering service worker...');
-        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        const registration = await navigator.serviceWorker.register('/sw.js', {
           scope: '/',
           updateViaCache: 'none' // Ensure we always check for updates
         });

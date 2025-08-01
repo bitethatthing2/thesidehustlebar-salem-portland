@@ -4,6 +4,9 @@
 // Import the caching utilities
 importScripts('/sw-cache.js');
 
+// Import Firebase messaging service worker for push notifications
+importScripts('/firebase-messaging-sw.js');
+
 // Service Worker version and cache names
 const SW_VERSION = '1.0.12';
 const SW_NAME = `side-hustle-sw-v${SW_VERSION}`;

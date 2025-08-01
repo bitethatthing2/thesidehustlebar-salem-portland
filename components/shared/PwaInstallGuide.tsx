@@ -152,7 +152,30 @@ export function PwaInstallGuide({ className, fullButton = false }: PwaInstallGui
     );
   }
   
+  // In production, hide if already installed or no prompt available (except iOS)
+  // In development, show a debug version
   if (appInstalled || (!promptAvailable && !isIOS)) {
+    if (process.env.NODE_ENV === 'development') {
+      return (
+        <Button
+          variant="outline"
+          size={fullButton ? "default" : "sm"}
+          className={cn("gap-2", fullButton ? "w-full" : "", className)}
+          onClick={() => {
+            console.log('[PWA Install Debug]', {
+              appInstalled,
+              promptAvailable,
+              isIOS,
+              hasInitialized
+            });
+            alert(`PWA Install Debug:\n\nApp Installed: ${appInstalled}\nPrompt Available: ${promptAvailable}\nIs iOS: ${isIOS}\nHas Initialized: ${hasInitialized}`);
+          }}
+        >
+          <DownloadIcon className="h-4 w-4" />
+          Install (Debug)
+        </Button>
+      );
+    }
     return null;
   }
 
