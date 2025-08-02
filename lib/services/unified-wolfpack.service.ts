@@ -213,8 +213,40 @@ class UnifiedWolfpackService {
   // FEED OPERATIONS
   // =========================================================================
 
-  async getFeedVideos(limit = 15): Promise<ServiceResponse<WolfpackVideo[]>> {
+  async getFeedVideos(limit = 15, offset = 0): Promise<ServiceResponse<WolfpackVideo[]>> {
     try {
+      console.log("📺 Fetching feed videos (limit:", limit, "offset:", offset, ")");
+      
+      const currentUser = await this.getCurrentUser();
+      
+      // Try RPC function first if user is authenticated
+      if (currentUser) {
+        try {
+          // Get the database user ID first
+          const profile = await this.getCurrentUserProfile();
+          if (profile) {
+            const { data: rpcData, error: rpcError } = await supabase.rpc('get_video_feed', {
+              p_user_id: profile.id,
+              p_limit: limit,
+              p_offset: offset
+            });
+
+            if (!rpcError && rpcData) {
+              console.log("✅ Fetched", rpcData.length, "videos via RPC");
+              return {
+                success: true,
+                data: rpcData || [],
+              };
+            } else {
+              console.log("RPC failed, falling back to direct query:", rpcError?.message);
+            }
+          }
+        } catch (rpcError) {
+          console.log("RPC not available, using direct query");
+        }
+      }
+
+      // Fallback to direct query
       const { data, error } = await supabase
         .from("wolfpack_videos")
         .select(`
@@ -241,16 +273,21 @@ class UnifiedWolfpackService {
         `)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(limit);
+        .range(offset, offset + limit - 1);
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Database error:", error);
+        throw error;
+      }
+
+      console.log("✅ Fetched", data?.length || 0, "videos from database");
 
       return {
         success: true,
         data: data || [],
       };
     } catch (error) {
-      console.error("Error fetching feed:", error);
+      console.error("❌ Error fetching feed:", error);
       return {
         success: false,
         error: error instanceof Error ? error.message : "Failed to fetch feed",
@@ -516,8 +553,11 @@ class UnifiedWolfpackService {
 
   async getComments(
     videoId: string,
+    limit = 50,
+    offset = 0
   ): Promise<ServiceResponse<WolfpackComment[]>> {
     try {
+      // Always use direct query for now (reliable)
       const { data, error } = await supabase
         .from("wolfpack_comments")
         .select(`
@@ -541,13 +581,14 @@ class UnifiedWolfpackService {
         `)
         .eq("video_id", videoId)
         .eq("is_deleted", false)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
 
       if (error) throw error;
 
       // Organize into tree structure
       const comments = this.organizeCommentsIntoTree(data || []);
-
+      
       return {
         success: true,
         data: comments,
@@ -559,6 +600,183 @@ class UnifiedWolfpackService {
         error: error instanceof Error
           ? error.message
           : "Failed to get comments",
+      };
+    }
+  }
+
+  async addComment(
+    videoId: string,
+    content: string,
+    parentCommentId?: string
+  ): Promise<ServiceResponse<WolfpackComment>> {
+    try {
+      const currentUser = await this.getCurrentUser();
+      if (!currentUser) {
+        return {
+          success: false,
+          error: "Authentication required to comment",
+        };
+      }
+
+      // Get the database user profile to get the correct user ID
+      const profile = await this.getCurrentUserProfile();
+      if (!profile) {
+        return {
+          success: false,
+          error: "User profile not found",
+        };
+      }
+
+      // Use direct insert for now (reliable)
+      const { data, error } = await supabase
+        .from("wolfpack_comments")
+        .insert({
+          video_id: videoId,
+          user_id: profile.id,
+          content: content.trim(),
+          parent_comment_id: parentCommentId || null,
+        })
+        .select(`
+          id,
+          user_id,
+          video_id,
+          parent_comment_id,
+          content,
+          created_at,
+          updated_at,
+          is_deleted,
+          likes_count,
+          users:user_id (
+            id,
+            display_name,
+            username,
+            first_name,
+            last_name,
+            avatar_url
+          )
+        `)
+        .single();
+
+      if (error) throw error;
+
+      return {
+        success: true,
+        data: data,
+      };
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      return {
+        success: false,
+        error: error instanceof Error
+          ? error.message
+          : "Failed to add comment",
+      };
+    }
+  }
+
+  async getBatchComments(
+    videoIds: string[],
+    limitPerPost = 3
+  ): Promise<ServiceResponse<Record<string, WolfpackComment[]>>> {
+    try {
+      if (videoIds.length === 0) {
+        return { success: true, data: {} };
+      }
+
+      // Use direct query for batch fetching (reliable)
+      const { data, error } = await supabase
+        .from("wolfpack_comments")
+        .select(`
+          id,
+          user_id,
+          video_id,
+          parent_comment_id,
+          content,
+          created_at,
+          updated_at,
+          is_deleted,
+          likes_count,
+          users:user_id (
+            id,
+            display_name,
+            username,
+            first_name,
+            last_name,
+            avatar_url
+          )
+        `)
+        .in("video_id", videoIds)
+        .eq("is_deleted", false)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Group comments by video_id and limit per video
+      const groupedComments: Record<string, WolfpackComment[]> = {};
+      
+      for (const comment of data || []) {
+        if (!groupedComments[comment.video_id]) {
+          groupedComments[comment.video_id] = [];
+        }
+        
+        if (groupedComments[comment.video_id].length < limitPerPost) {
+          groupedComments[comment.video_id].push(comment);
+        }
+      }
+
+      return {
+        success: true,
+        data: groupedComments,
+      };
+    } catch (error) {
+      console.error("Error getting batch comments:", error);
+      return {
+        success: false,
+        error: error instanceof Error
+          ? error.message
+          : "Failed to get comments",
+      };
+    }
+  }
+
+  async getBatchCommentCounts(
+    videoIds: string[]
+  ): Promise<ServiceResponse<Record<string, number>>> {
+    try {
+      if (videoIds.length === 0) {
+        return { success: true, data: {} };
+      }
+
+      // Get comment counts for multiple videos efficiently
+      const { data, error } = await supabase
+        .from("wolfpack_comments")
+        .select("video_id")
+        .in("video_id", videoIds)
+        .eq("is_deleted", false);
+
+      if (error) throw error;
+
+      // Count comments per video
+      const counts: Record<string, number> = {};
+      for (const videoId of videoIds) {
+        counts[videoId] = 0;
+      }
+      
+      for (const comment of data || []) {
+        counts[comment.video_id] = (counts[comment.video_id] || 0) + 1;
+      }
+
+      return {
+        success: true,
+        data: counts,
+      };
+    } catch (error) {
+      console.error("Error getting comment counts:", error);
+      return {
+        success: false,
+        error: error instanceof Error
+          ? error.message
+          : "Failed to get comment counts",
       };
     }
   }

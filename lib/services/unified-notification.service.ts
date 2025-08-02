@@ -63,8 +63,10 @@ class UnifiedNotificationService {
       // Get messaging instance
       this.messaging = getMessaging();
 
-      // Get FCM token
-      await this.getFCMToken();
+      // Get FCM token (non-blocking)
+      this.getFCMToken().catch(error => {
+        console.log("FCM token not available:", error.message);
+      });
 
       // Listen for foreground messages
       onMessage(this.messaging, (payload) => {
@@ -75,6 +77,8 @@ class UnifiedNotificationService {
       this.isInitialized = true;
     } catch (error) {
       console.error("Failed to initialize Firebase messaging:", error);
+      // Mark as initialized anyway so app can continue
+      this.isInitialized = true;
     }
   }
 
@@ -83,6 +87,19 @@ class UnifiedNotificationService {
    */
   private async getFCMToken() {
     try {
+      // Skip FCM token if service worker is not available
+      if (!('serviceWorker' in navigator)) {
+        console.log("Service Worker not supported, skipping FCM token");
+        return;
+      }
+
+      // Check if service worker is registered and active
+      const registration = await navigator.serviceWorker.getRegistration();
+      if (!registration || !registration.active) {
+        console.log("No active service worker, skipping FCM token");
+        return;
+      }
+
       const { getToken } = await import("firebase/messaging");
 
       // Check if permission is already granted

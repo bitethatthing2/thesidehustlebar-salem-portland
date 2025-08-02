@@ -48,13 +48,9 @@ export function PostCreator({ isOpen, onClose, onSuccess }: PostCreatorProps) {
   
   const setVideoRef = useCallback((element: HTMLVideoElement | null) => {
     videoRef.current = element;
-    
-    // If we already have a stream, apply it immediately
-    if (element && camera.streamRef.current) {
-      console.log('🎥 Applying existing stream to video element');
-      element.srcObject = camera.streamRef.current;
-    }
-  }, [camera.streamRef]);
+    // Use the new updateVideoElement function from the camera hook
+    camera.updateVideoElement(element);
+  }, [camera]);
 
   useEffect(() => {
     if (isOpen && !camera.streamRef.current) {

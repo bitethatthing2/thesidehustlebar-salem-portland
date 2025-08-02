@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { wolfpackService } from '@/lib/services/unified-wolfpack.service';
+import { supabase } from '@/lib/supabase';
 import TikTokStyleFeed from '@/components/wolfpack/feed/TikTokStyleFeed';
 import { PostCreator } from '@/components/wolfpack/PostCreator';
 import ShareModal from '@/components/wolfpack/ShareModal';
@@ -101,6 +102,61 @@ export default function OptimizedWolfpackFeedPage() {
   useEffect(() => {
     loadFeed();
   }, [loadFeed]);
+
+  // Fetch real-time comment counts for visible videos
+  useEffect(() => {
+    const fetchCommentCounts = async () => {
+      if (wolfpack_videos.length === 0) return;
+      
+      const videoIds = wolfpack_videos.map(v => v.id);
+      const response = await wolfpackService.getBatchCommentCounts(videoIds);
+      
+      if (response.success && response.data) {
+        // Update videos with real comment counts
+        setwolfpack_videos(prev => prev.map(video => ({
+          ...video,
+          wolfpack_comments_count: response.data[video.id] || 0
+        })));
+      }
+    };
+
+    // Fetch counts initially
+    fetchCommentCounts();
+
+    // Set up interval to refresh counts every 30 seconds
+    const interval = setInterval(fetchCommentCounts, 30000);
+
+    // Set up real-time subscription for comment updates
+    const videoIds = wolfpack_videos.map(v => v.id);
+    const channels: any[] = [];
+    
+    if (videoIds.length > 0) {
+      // Subscribe to comment changes for all visible videos
+      const channel = supabase
+        .channel('feed-comments')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'wolfpack_comments',
+            filter: `video_id=in.(${videoIds.join(',')})`
+          },
+          () => {
+            // Refetch counts when any comment changes
+            fetchCommentCounts();
+          }
+        )
+        .subscribe();
+      
+      channels.push(channel);
+    }
+
+    return () => {
+      clearInterval(interval);
+      channels.forEach(channel => channel.unsubscribe());
+    };
+  }, [wolfpack_videos.length]);
 
   const [showPostCreator, setShowPostCreator] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -312,7 +368,7 @@ export default function OptimizedWolfpackFeedPage() {
           }}
           initialCommentCount={0}
           onCommentCountChange={(count) => {
-            // Update comment count in local state if needed
+            // Update comment count in local state
             setwolfpack_videos(prev => prev.map(video => 
               video.id === activeVideoId 
                 ? { ...video, wolfpack_comments_count: count }
